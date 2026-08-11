@@ -27,7 +27,8 @@ class InventoryContainer {
   final String name;
   final String roomId;
   final String iconName;
-  final String labelId; // Wieder da für das Recycling
+  final String labelId;
+  final String photo; // Neu: Foto-Feld
   final RecordModel record;
 
   InventoryContainer({
@@ -36,6 +37,7 @@ class InventoryContainer {
     required this.roomId, 
     required this.iconName,
     required this.labelId,
+    required this.photo,
     required this.record
   });
 
@@ -47,6 +49,7 @@ class InventoryContainer {
       roomId: record.getStringValue('room'),
       iconName: icon.isEmpty ? 'inventory_2' : icon,
       labelId: record.getStringValue('labelId'),
+      photo: record.getStringValue('photo'), // Aus PocketBase laden
       record: record,
     );
   }

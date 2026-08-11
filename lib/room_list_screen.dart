@@ -102,8 +102,8 @@ class _RoomListScreenState extends State<RoomListScreen> {
                 
                 return SliverGrid(
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 350,
-                    mainAxisExtent: 80,
+                    maxCrossAxisExtent: 450, // Etwas breiter erlaubt
+                    mainAxisExtent: 130,     // Mehr Höhe für die Kacheln gegen den Overflow
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
                   ),
@@ -161,7 +161,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
           _refreshRooms();
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
               Icon(room.iconData, color: Theme.of(context).colorScheme.primary, size: 28),

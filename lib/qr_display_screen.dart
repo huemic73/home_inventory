@@ -17,46 +17,54 @@ class QrDisplayScreen extends StatelessWidget {
   String get _type => container != null ? 'container' : 'item';
   String get _qrData => 'home_inventory_$_type:$_id';
 
-  Future<void> _printQrCode() async {
-    final doc = pw.Document();
+  Future<void> _printQrCode(BuildContext context) async {
+    try {
+      final doc = pw.Document();
 
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) {
-          return pw.Center(
-            child: pw.Column(
-              mainAxisAlignment: pw.MainAxisAlignment.center,
-              children: [
-                pw.Text('Home Inventory', style: pw.TextStyle(fontSize: 40, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 20),
-                pw.Text(_name, style: pw.TextStyle(fontSize: 30)),
-                pw.SizedBox(height: 10),
-                pw.Text(_type == 'container' ? 'Container / Box' : 'Artikel', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey700)),
-                pw.SizedBox(height: 40),
-                pw.Container(
-                  width: 300,
-                  height: 300,
-                  child: pw.BarcodeWidget(
-                    barcode: pw.Barcode.qrCode(),
-                    data: _qrData,
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Center(
+              child: pw.Column(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  pw.Text('Home Inventory', style: pw.TextStyle(fontSize: 40, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 20),
+                  pw.Text(_name, style: pw.TextStyle(fontSize: 30)),
+                  pw.SizedBox(height: 10),
+                  pw.Text(_type == 'container' ? 'Container / Box' : 'Artikel', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey700)),
+                  pw.SizedBox(height: 40),
+                  pw.Container(
                     width: 300,
                     height: 300,
+                    child: pw.BarcodeWidget(
+                      barcode: pw.Barcode.qrCode(),
+                      data: _qrData,
+                      width: 300,
+                      height: 300,
+                    ),
                   ),
-                ),
-                pw.SizedBox(height: 40),
-                pw.Text('ID: $_id', style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+                  pw.SizedBox(height: 40),
+                  pw.Text('ID: $_id', style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                ],
+              ),
+            );
+          },
+        ),
+      );
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => doc.save(),
-      name: 'QR_${_type}_${_name.replaceAll(' ', '_')}',
-    );
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => doc.save(),
+        name: 'QR_${_type}_${_name.replaceAll(' ', '_')}',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Druckfehler: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -106,7 +114,7 @@ class QrDisplayScreen extends StatelessWidget {
                 const SizedBox(height: 60),
                 
                 FilledButton.icon(
-                  onPressed: _printQrCode,
+                  onPressed: () => _printQrCode(context),
                   icon: const Icon(Icons.print),
                   label: const Text('Drucken / Als PDF speichern'),
                   style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16)),

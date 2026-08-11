@@ -35,48 +35,67 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
   }
 
   Future<void> _generateAndPrint() async {
-    final doc = pw.Document();
-    final containersToPrint = _allContainers.where((c) => _selectedIds.contains(c.id)).toList();
+    try {
+      final doc = pw.Document();
+      final containersToPrint = _allContainers.where((c) => _selectedIds.contains(c.id)).toList();
 
-    doc.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) => [
-          pw.Header(level: 0, text: 'Inventar Labels'),
-          pw.GridView(
-            crossAxisCount: 3,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            children: containersToPrint.map((container) {
-              return pw.Container(
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
-                ),
-                padding: const pw.EdgeInsets.all(10),
-                child: pw.Column(
-                  mainAxisAlignment: pw.MainAxisAlignment.center,
-                  children: [
-                    pw.Text(container.name, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
-                    pw.SizedBox(height: 5),
-                    pw.BarcodeWidget(
-                      barcode: pw.Barcode.qrCode(),
-                      data: 'home_inventory_container:${container.id}',
-                      width: 80,
-                      height: 80,
-                    ),
-                    pw.SizedBox(height: 5),
-                    pw.Text('ID: ${container.id}', style: const pw.TextStyle(fontSize: 6)),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context context) => [
+            pw.Header(level: 0, text: 'Inventar Labels'),
+            pw.SizedBox(height: 20),
+            pw.Wrap(
+              spacing: 20,
+              runSpacing: 20,
+              children: containersToPrint.map((container) {
+                return pw.Container(
+                  width: 150,
+                  height: 180,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey400),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
+                  ),
+                  padding: const pw.EdgeInsets.all(10),
+                  child: pw.Column(
+                    mainAxisAlignment: pw.MainAxisAlignment.center,
+                    children: [
+                      pw.Text(
+                        container.name, 
+                        style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold), 
+                        textAlign: pw.TextAlign.center,
+                        maxLines: 2,
+                      ),
+                      pw.SizedBox(height: 10),
+                      pw.BarcodeWidget(
+                        barcode: pw.Barcode.qrCode(),
+                        data: 'home_inventory_container:${container.id}',
+                        width: 100,
+                        height: 100,
+                      ),
+                      pw.SizedBox(height: 5),
+                      pw.Text('ID: ${container.id}', style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      );
 
-    await Printing.layoutPdf(onLayout: (format) async => doc.save(), name: 'Container_Labels.pdf');
+      await Printing.layoutPdf(
+        onLayout: (format) async => doc.save(), 
+        name: 'Container_Labels.pdf'
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Druckfehler: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override

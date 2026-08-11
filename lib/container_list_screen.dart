@@ -1,5 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io' as io;
 import 'models.dart';
 import 'item_list_screen.dart';
 import 'scanner_screen.dart'; // Für Zuweisungs-Scan
@@ -78,8 +82,8 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
 
                 return SliverGrid(
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 350,
-                    mainAxisExtent: 80,
+                    maxCrossAxisExtent: 450, // Etwas breiter erlaubt
+                    mainAxisExtent: 130,     // Mehr Höhe für die Kacheln gegen den Overflow
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
                   ),
@@ -103,6 +107,10 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
 
   Widget _buildContainerCard(BuildContext context, InventoryContainer container) {
     final itemCount = _containerItemCounts[container.id] ?? 0;
+    String imageUrl = '';
+    if (container.photo.isNotEmpty) {
+      imageUrl = widget.pb.files.getUrl(container.record, container.photo).toString();
+    }
 
     return Card(
       elevation: 0,
@@ -127,11 +135,24 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
           _refreshContainers(); // Aktualisiert die Artikel-Anzahl beim Zurückkommen
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
-              Icon(container.iconData, color: Theme.of(context).colorScheme.secondary, size: 28),
-              const SizedBox(width: 16),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(container.iconData, color: Theme.of(context).colorScheme.secondary))
+                      : Icon(container.iconData, color: Theme.of(context).colorScheme.secondary, size: 28),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -173,66 +194,98 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     final controller = TextEditingController(text: container?.name);
     String selectedIcon = container?.iconName ?? 'inventory_2';
     String currentLabelId = container?.labelId ?? '';
+    XFile? pickedFile;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(container == null ? 'Neuer Container' : 'Container bearbeiten'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder())),
-                const SizedBox(height: 16),
-                
-                // Label-Zuweisung Bereich
-                Card(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: ListTile(
-                    title: const Text('QR-Code Zuordnung'),
-                    subtitle: Text(currentLabelId.isEmpty ? 'Automatische ID' : 'Manuelle ID: $currentLabelId'),
-                    trailing: IconButton(
-                      icon: Icon(currentLabelId.isEmpty ? Icons.qr_code_scanner : Icons.clear),
-                      onPressed: () async {
-                        if (currentLabelId.isEmpty) {
-                          // Scanner öffnen
-                          final scannedId = await Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb, isAssigningMode: true)),
-                          );
-                          if (scannedId != null) {
-                            setState(() => currentLabelId = scannedId);
-                          }
-                        } else {
-                          // Zuordnung löschen
-                          setState(() => currentLabelId = '');
-                        }
-                      },
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView( // Ganzer Inhalt scrollbar machen
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () async {
+                      final picker = ImagePicker();
+                      final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
+                      if (file != null) setState(() => pickedFile = file);
+                    },
+                    child: Container(
+                      height: 140, // Etwas mehr Platz für das Foto
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[400]!),
+                      ),
+                      child: pickedFile != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: kIsWeb ? Image.network(pickedFile!.path, fit: BoxFit.cover) : Image.file(io.File(pickedFile!.path), fit: BoxFit.cover),
+                            )
+                          : (container?.photo.isNotEmpty == true && pickedFile == null)
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(widget.pb.files.getUrl(container!.record, container.photo).toString(), fit: BoxFit.cover),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add_a_photo, color: Colors.grey[600]),
+                                    const Text('Foto hinzufügen', style: TextStyle(fontSize: 12)),
+                                  ],
+                                ),
                     ),
                   ),
-                ),
-                
-                const SizedBox(height: 20),
-                const Text('Icon wählen:'),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: iconMapping.entries.map((e) => GestureDetector(
-                    onTap: () => setState(() => selectedIcon = e.key),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondaryContainer : null,
-                        border: Border.all(color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondary : Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 16),
+                  TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder())),
+                  const SizedBox(height: 12),
+                  Card(
+                    elevation: 0,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      title: const Text('QR-Code', style: TextStyle(fontSize: 13)),
+                      subtitle: Text(currentLabelId.isEmpty ? 'Automatisch' : 'ID: $currentLabelId', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+                      trailing: IconButton(
+                        icon: Icon(currentLabelId.isEmpty ? Icons.qr_code_scanner : Icons.clear, size: 18),
+                        onPressed: () async {
+                          if (currentLabelId.isEmpty) {
+                            final scannedId = await Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb, isAssigningMode: true)));
+                            if (scannedId != null) setState(() => currentLabelId = scannedId);
+                          } else {
+                            setState(() => currentLabelId = '');
+                          }
+                        },
                       ),
-                      child: Icon(e.value, size: 24),
                     ),
-                  )).toList(),
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Align(alignment: Alignment.centerLeft, child: Text('Icon wählen:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.start,
+                    children: iconMapping.entries.map((e) => GestureDetector(
+                      onTap: () => setState(() => selectedIcon = e.key),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondaryContainer : null,
+                          border: Border.all(color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondary : Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(e.value, size: 22),
+                      ),
+                    )).toList(),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -243,30 +296,30 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                   final Map<String, dynamic> data = {
                     'name': controller.text, 
                     'icon': selectedIcon,
+                    'labelId': currentLabelId.isEmpty ? null : currentLabelId,
                   };
 
-                  // Wir senden den Schlüssel IMMER mit. 
-                  // Ist er leer, senden wir explizit null.
-                  data['labelId'] = currentLabelId.isEmpty ? null : currentLabelId;
+                  List<http.MultipartFile> files = [];
+                  if (pickedFile != null) {
+                    if (kIsWeb) {
+                      final bytes = await pickedFile!.readAsBytes();
+                      files.add(http.MultipartFile.fromBytes('photo', bytes, filename: pickedFile!.name));
+                    } else {
+                      files.add(await http.MultipartFile.fromPath('photo', pickedFile!.path));
+                    }
+                  }
 
                   try {
                     if (container == null) {
                       data['room'] = widget.room.id;
-                      await widget.pb.collection('containers').create(body: data);
+                      await widget.pb.collection('containers').create(body: data, files: files);
                     } else {
-                      await widget.pb.collection('containers').update(container.id, body: data);
+                      await widget.pb.collection('containers').update(container.id, body: data, files: files);
                     }
                     if (mounted) Navigator.pop(context);
                     _refreshContainers();
                   } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Fehler: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'), backgroundColor: Colors.red));
                   }
                 }
               },
