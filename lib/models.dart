@@ -27,6 +27,7 @@ class InventoryContainer {
   final String name;
   final String roomId;
   final String iconName;
+  final String labelId; // Wieder da für das Recycling
   final RecordModel record;
 
   InventoryContainer({
@@ -34,6 +35,7 @@ class InventoryContainer {
     required this.name, 
     required this.roomId, 
     required this.iconName,
+    required this.labelId,
     required this.record
   });
 
@@ -44,6 +46,7 @@ class InventoryContainer {
       name: record.getStringValue('name'),
       roomId: record.getStringValue('room'),
       iconName: icon.isEmpty ? 'inventory_2' : icon,
+      labelId: record.getStringValue('labelId'),
       record: record,
     );
   }

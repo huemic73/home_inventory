@@ -8,6 +8,8 @@ import 'dart:io' as io;
 import 'models.dart';
 import 'move_item_screen.dart';
 
+import 'qr_display_screen.dart'; // Import für QR-Anzeige
+
 class ItemDetailScreen extends StatefulWidget {
   final Item item;
   final PocketBase pb;
@@ -107,110 +109,123 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 _showEditItemDialog();
               } else if (value == 'delete') {
                 _showDeleteConfirmDialog();
+              } else if (value == 'qr') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => QrDisplayScreen(item: widget.item),
+                  ),
+                );
               }
             },
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+              const PopupMenuItem(value: 'qr', child: Text('QR-Code anzeigen')),
               const PopupMenuItem(value: 'delete', child: Text('Löschen')),
             ],
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: AspectRatio(
-                aspectRatio: 4 / 3,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    imageUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl,
-                            placeholder: (context, url) => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.broken_image, size: 64),
-                            ),
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            color: Colors.grey[100],
-                            child: Icon(
-                              Icons.inventory_2,
-                              size: 80,
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                            ),
-                          ),
-                    if (_isUploading)
-                      Container(
-                        color: Colors.black26,
-                        child: const Center(child: CircularProgressIndicator()),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            Card(
-              elevation: 0,
-              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
-                    const Divider(height: 24),
-                    _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            Text('Aktionen', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Row(
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 800), // Maximale Breite für Desktop
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _isUploading ? null : () => _showImageSourceActionSheet(context),
-                    icon: const Icon(Icons.add_a_photo),
-                    label: const Text('Foto'),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        imageUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: imageUrl,
+                                placeholder: (context, url) => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.broken_image, size: 64),
+                                ),
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                color: Colors.grey[100],
+                                child: Icon(
+                                  Icons.inventory_2,
+                                  size: 80,
+                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                                ),
+                              ),
+                        if (_isUploading)
+                          Container(
+                            color: Colors.black26,
+                            child: const Center(child: CircularProgressIndicator()),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MoveItemScreen(
-                            pb: widget.pb,
-                            item: widget.item,
-                          ),
-                        ),
-                      );
-                      if (result == true && mounted) {
-                        Navigator.pop(context, true); 
-                      }
-                    },
-                    icon: const Icon(Icons.drive_file_move),
-                    label: const Text('Verschieben'),
+                const SizedBox(height: 24),
+                
+                Card(
+                  elevation: 0,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
+                        const Divider(height: 24),
+                        _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
+                      ],
+                    ),
                   ),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                Text('Aktionen', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _isUploading ? null : () => _showImageSourceActionSheet(context),
+                        icon: const Icon(Icons.add_a_photo),
+                        label: const Text('Foto'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MoveItemScreen(
+                                pb: widget.pb,
+                                item: widget.item,
+                              ),
+                            ),
+                          );
+                          if (result == true && mounted) {
+                            Navigator.pop(context, true); 
+                          }
+                        },
+                        icon: const Icon(Icons.drive_file_move),
+                        label: const Text('Verschieben'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

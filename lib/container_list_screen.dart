@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'models.dart';
 import 'item_list_screen.dart';
+import 'scanner_screen.dart'; // Für Zuweisungs-Scan
 
 class ContainerListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -60,6 +61,9 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
           SliverAppBar.large(
             title: Text(widget.room.name),
             backgroundColor: Theme.of(context).colorScheme.surface,
+            actions: [
+              IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshContainers),
+            ],
           ),
           SliverPadding(
             padding: const EdgeInsets.all(16.0),
@@ -109,10 +113,19 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, container: container)),
-        ),
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ItemListScreen(
+                pb: widget.pb, 
+                container: container,
+                room: widget.room,
+              ),
+            ),
+          );
+          _refreshContainers(); // Aktualisiert die Artikel-Anzahl beim Zurückkommen
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -159,6 +172,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   void _showAddContainerDialog(BuildContext context, {InventoryContainer? container}) {
     final controller = TextEditingController(text: container?.name);
     String selectedIcon = container?.iconName ?? 'inventory_2';
+    String currentLabelId = container?.labelId ?? '';
 
     showDialog(
       context: context,
@@ -170,6 +184,35 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder())),
+                const SizedBox(height: 16),
+                
+                // Label-Zuweisung Bereich
+                Card(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: ListTile(
+                    title: const Text('QR-Code Zuordnung'),
+                    subtitle: Text(currentLabelId.isEmpty ? 'Automatische ID' : 'Manuelle ID: $currentLabelId'),
+                    trailing: IconButton(
+                      icon: Icon(currentLabelId.isEmpty ? Icons.qr_code_scanner : Icons.clear),
+                      onPressed: () async {
+                        if (currentLabelId.isEmpty) {
+                          // Scanner öffnen
+                          final scannedId = await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb, isAssigningMode: true)),
+                          );
+                          if (scannedId != null) {
+                            setState(() => currentLabelId = scannedId);
+                          }
+                        } else {
+                          // Zuordnung löschen
+                          setState(() => currentLabelId = '');
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                
                 const SizedBox(height: 20),
                 const Text('Icon wählen:'),
                 const SizedBox(height: 10),
@@ -197,15 +240,34 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
             FilledButton(
               onPressed: () async {
                 if (controller.text.isNotEmpty) {
-                  final data = {'name': controller.text, 'icon': selectedIcon};
-                  if (container == null) {
-                    data['room'] = widget.room.id;
-                    await widget.pb.collection('containers').create(body: data);
-                  } else {
-                    await widget.pb.collection('containers').update(container.id, body: data);
+                  final Map<String, dynamic> data = {
+                    'name': controller.text, 
+                    'icon': selectedIcon,
+                  };
+
+                  // Wir senden den Schlüssel IMMER mit. 
+                  // Ist er leer, senden wir explizit null.
+                  data['labelId'] = currentLabelId.isEmpty ? null : currentLabelId;
+
+                  try {
+                    if (container == null) {
+                      data['room'] = widget.room.id;
+                      await widget.pb.collection('containers').create(body: data);
+                    } else {
+                      await widget.pb.collection('containers').update(container.id, body: data);
+                    }
+                    if (mounted) Navigator.pop(context);
+                    _refreshContainers();
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Fehler: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
-                  if (mounted) Navigator.pop(context);
-                  _refreshContainers();
                 }
               },
               child: const Text('Speichern'),
@@ -220,7 +282,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Löschen?'),
+        title: const Text('Container löschen?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
           TextButton(onPressed: () async {

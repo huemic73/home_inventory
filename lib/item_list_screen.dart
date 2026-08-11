@@ -3,13 +3,21 @@ import 'package:pocketbase/pocketbase.dart';
 import 'models.dart';
 import 'item_detail_screen.dart';
 import 'add_item_screen.dart';
+import 'pick_unassigned_items_screen.dart'; // Import hinzugefügt
 
 class ItemListScreen extends StatefulWidget {
   final PocketBase pb;
   final InventoryContainer? container;
+  final Room? room; // Optional: Raum-Info für die Anzeige
   final bool onlyUnassigned;
 
-  const ItemListScreen({super.key, required this.pb, this.container, this.onlyUnassigned = false});
+  const ItemListScreen({
+    super.key, 
+    required this.pb, 
+    this.container, 
+    this.room, 
+    this.onlyUnassigned = false
+  });
 
   @override
   State<ItemListScreen> createState() => _ItemListScreenState();
@@ -51,14 +59,35 @@ class _ItemListScreenState extends State<ItemListScreen> {
   @override
   Widget build(BuildContext context) {
     String title = 'Gegenstände';
-    if (widget.container != null) title = widget.container!.name;
-    if (widget.onlyUnassigned) title = 'Ohne Zuordnung';
+    String? subtitle;
+
+    if (widget.container != null) {
+      title = widget.container!.name;
+      if (widget.room != null) {
+        subtitle = 'In Raum: ${widget.room!.name}';
+      }
+    } else if (widget.onlyUnassigned) {
+      title = 'Ohne Zuordnung';
+    }
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: Text(title),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title),
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+              ],
+            ),
             backgroundColor: Theme.of(context).colorScheme.surface,
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(80),
@@ -100,13 +129,48 @@ class _ItemListScreenState extends State<ItemListScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final res = await Navigator.push(context, MaterialPageRoute(builder: (context) => AddItemScreen(pb: widget.pb, container: widget.container)));
-          if (res == true) _refreshItems();
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Hinzufügen'),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.container != null) ...[
+            FloatingActionButton.extended(
+              heroTag: 'pick_existing',
+              onPressed: () async {
+                final res = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PickUnassignedItemsScreen(
+                      pb: widget.pb,
+                      targetContainer: widget.container!,
+                    ),
+                  ),
+                );
+                if (res == true) _refreshItems();
+              },
+              icon: const Icon(Icons.playlist_add),
+              label: const Text('Bestehende wählen'),
+              backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+            ),
+            const SizedBox(height: 12),
+          ],
+          FloatingActionButton.extended(
+            heroTag: 'add_new',
+            onPressed: () async {
+              final res = await Navigator.push(
+                context, 
+                MaterialPageRoute(
+                  builder: (context) => AddItemScreen(
+                    pb: widget.pb, 
+                    container: widget.container
+                  ),
+                ),
+              );
+              if (res == true) _refreshItems();
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Neu anlegen'),
+          ),
+        ],
       ),
     );
   }

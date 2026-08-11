@@ -3,6 +3,9 @@ import 'package:pocketbase/pocketbase.dart';
 import 'models.dart';
 import 'container_list_screen.dart';
 import 'item_list_screen.dart';
+import 'scanner_screen.dart'; // Import hinzugefügt
+
+import 'bulk_qr_print_screen.dart'; // Import hinzugefügt
 
 class RoomListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -47,6 +50,15 @@ class _RoomListScreenState extends State<RoomListScreen> {
     return rooms;
   }
 
+  void _openScanner(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ScannerScreen(pb: widget.pb),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,6 +67,16 @@ class _RoomListScreenState extends State<RoomListScreen> {
           SliverAppBar.large(
             title: const Text('Mein Inventar'),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.print),
+                tooltip: 'Labels drucken',
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => BulkQrPrintScreen(pb: widget.pb))),
+              ),
+              IconButton(
+                icon: const Icon(Icons.qr_code_scanner),
+                tooltip: 'Container scannen',
+                onPressed: () => _openScanner(context),
+              ),
               IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb)))),
               IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshRooms),
             ],
@@ -129,7 +151,15 @@ class _RoomListScreenState extends State<RoomListScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, room: room))),
+        onTap: () async {
+          await Navigator.push(
+            context, 
+            MaterialPageRoute(
+              builder: (context) => ContainerListScreen(pb: widget.pb, room: room)
+            ),
+          );
+          _refreshRooms();
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
