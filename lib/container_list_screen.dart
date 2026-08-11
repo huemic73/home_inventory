@@ -15,6 +15,7 @@ class ContainerListScreen extends StatefulWidget {
 
 class _ContainerListScreenState extends State<ContainerListScreen> {
   late Future<List<InventoryContainer>> _containersFuture;
+  Map<String, int> _containerItemCounts = {};
 
   @override
   void initState() {
@@ -23,9 +24,8 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   }
 
   void _refreshContainers() {
-    setState(() {
-      _containersFuture = _fetchContainers();
-    });
+    _containersFuture = _fetchContainers();
+    setState(() {});
   }
 
   Future<List<InventoryContainer>> _fetchContainers() async {
@@ -33,117 +33,185 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       filter: 'room = "${widget.room.id}"',
       sort: 'name',
     );
-    return records.map((r) => InventoryContainer.fromRecord(r)).toList();
+    final containers = records.map((r) => InventoryContainer.fromRecord(r)).toList();
+    
+    // Zähle Items pro Container
+    final itemRecords = await widget.pb.collection('items').getFullList(fields: 'container');
+    final Map<String, int> counts = {};
+    for (var record in itemRecords) {
+      final containerId = record.getStringValue('container');
+      if (containerId.isNotEmpty) {
+        counts[containerId] = (counts[containerId] ?? 0) + 1;
+      }
+    }
+    
+    setState(() {
+      _containerItemCounts = counts;
+    });
+
+    return containers;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Container in ${widget.room.name}'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshContainers,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(widget.room.name),
+            backgroundColor: Theme.of(context).colorScheme.surface,
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.all(16.0),
+            sliver: FutureBuilder<List<InventoryContainer>>(
+              future: _containersFuture,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+                final containers = snapshot.data!;
+                if (containers.isEmpty) {
+                  return const SliverToBoxAdapter(child: Center(child: Text('Keine Container in diesem Raum.')));
+                }
+
+                return SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 350,
+                    mainAxisExtent: 80,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildContainerCard(context, containers[index]),
+                    childCount: containers.length,
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
-      body: FutureBuilder<List<InventoryContainer>>(
-        future: _containersFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Fehler: ${snapshot.error}'));
-          }
-          final containers = snapshot.data ?? [];
-          if (containers.isEmpty) {
-            return const Center(child: Text('Keine Container in diesem Raum.'));
-          }
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddContainerDialog(context),
+        icon: const Icon(Icons.add),
+        label: const Text('Neuer Container'),
+      ),
+    );
+  }
 
-          return ListView.builder(
-            itemCount: containers.length,
-            itemBuilder: (context, index) {
-              final container = containers[index];
-              return ListTile(
-                leading: const Icon(Icons.inventory),
-                title: Text(container.name),
-                trailing: PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _showAddContainerDialog(context, container: container);
-                    } else if (value == 'delete') {
-                      _showDeleteConfirmDialog(context, container);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                    const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-                  ],
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ItemListScreen(
-                        pb: widget.pb,
-                        container: container,
+  Widget _buildContainerCard(BuildContext context, InventoryContainer container) {
+    final itemCount = _containerItemCounts[container.id] ?? 0;
+
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, container: container)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Icon(container.iconData, color: Theme.of(context).colorScheme.secondary, size: 28),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      container.name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '$itemCount Gegenstände',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.secondary,
                       ),
                     ),
-                  );
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                onSelected: (val) {
+                  if (val == 'edit') _showAddContainerDialog(context, container: container);
+                  if (val == 'delete') _showDeleteConfirmDialog(context, container);
                 },
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showAddContainerDialog(context);
-        },
-        child: const Icon(Icons.add),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+                  const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   void _showAddContainerDialog(BuildContext context, {InventoryContainer? container}) {
     final controller = TextEditingController(text: container?.name);
+    String selectedIcon = container?.iconName ?? 'inventory_2';
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(container == null ? 'Neuer Container' : 'Container bearbeiten'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Name (z.B. Box 1, Regal A)'),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(container == null ? 'Neuer Container' : 'Container bearbeiten'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder())),
+                const SizedBox(height: 20),
+                const Text('Icon wählen:'),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: iconMapping.entries.map((e) => GestureDetector(
+                    onTap: () => setState(() => selectedIcon = e.key),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondaryContainer : null,
+                        border: Border.all(color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondary : Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(e.value, size: 24),
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ),
           ),
-          TextButton(
-            onPressed: () async {
-              if (controller.text.isNotEmpty) {
-                if (container == null) {
-                  await widget.pb.collection('containers').create(body: {
-                    'name': controller.text,
-                    'room': widget.room.id,
-                  });
-                } else {
-                  await widget.pb.collection('containers').update(container.id, body: {
-                    'name': controller.text,
-                  });
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+            FilledButton(
+              onPressed: () async {
+                if (controller.text.isNotEmpty) {
+                  final data = {'name': controller.text, 'icon': selectedIcon};
+                  if (container == null) {
+                    data['room'] = widget.room.id;
+                    await widget.pb.collection('containers').create(body: data);
+                  } else {
+                    await widget.pb.collection('containers').update(container.id, body: data);
+                  }
+                  if (mounted) Navigator.pop(context);
+                  _refreshContainers();
                 }
-                if (mounted) Navigator.pop(context);
-                _refreshContainers();
-              }
-            },
-            child: const Text('Speichern'),
-          ),
-        ],
+              },
+              child: const Text('Speichern'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -152,22 +220,14 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Container löschen?'),
-        content: Text('Möchtest du "${container.name}" wirklich löschen? Die enthaltenen Items bleiben erhalten, verlieren aber ihre Zuordnung zu diesem Container.'),
+        title: const Text('Löschen?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () async {
-              await widget.pb.collection('containers').delete(container.id);
-              if (mounted) Navigator.pop(context);
-              _refreshContainers();
-            },
-            child: const Text('Löschen'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          TextButton(onPressed: () async {
+            await widget.pb.collection('containers').delete(container.id);
+            if (mounted) Navigator.pop(context);
+            _refreshContainers();
+          }, child: const Text('Löschen', style: TextStyle(color: Colors.red))),
         ],
       ),
     );

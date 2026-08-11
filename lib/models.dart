@@ -1,42 +1,54 @@
 import 'package:pocketbase/pocketbase.dart';
+import 'package:flutter/material.dart';
 
 class Room {
   final String id;
   final String name;
+  final String iconName;
   final RecordModel record;
 
-  Room({required this.id, required this.name, required this.record});
+  Room({required this.id, required this.name, required this.iconName, required this.record});
 
   factory Room.fromRecord(RecordModel record) {
+    final icon = record.getStringValue('icon');
     return Room(
       id: record.id,
       name: record.getStringValue('name'),
+      iconName: icon.isEmpty ? 'meeting_room' : icon,
       record: record,
     );
   }
+
+  IconData get iconData => iconMapping[iconName] ?? Icons.meeting_room;
 }
 
 class InventoryContainer {
   final String id;
   final String name;
   final String roomId;
+  final String iconName;
   final RecordModel record;
 
   InventoryContainer({
     required this.id, 
     required this.name, 
     required this.roomId, 
+    required this.iconName,
     required this.record
   });
 
   factory InventoryContainer.fromRecord(RecordModel record) {
+    final icon = record.getStringValue('icon');
     return InventoryContainer(
       id: record.id,
       name: record.getStringValue('name'),
       roomId: record.getStringValue('room'),
+      iconName: icon.isEmpty ? 'inventory_2' : icon,
       record: record,
     );
   }
+
+  IconData get iconData => iconMapping[iconName] ?? Icons.inventory_2;
 }
 
 class Item {
@@ -67,3 +79,18 @@ class Item {
     );
   }
 }
+
+// Zentrales Mapping für Icons
+final Map<String, IconData> iconMapping = {
+  'meeting_room': Icons.meeting_room,
+  'kitchen': Icons.kitchen,
+  'garage': Icons.garage,
+  'weekend': Icons.weekend, // Wohnzimmer
+  'bed': Icons.bed,
+  'build': Icons.build, // Werkstatt
+  'warehouse': Icons.warehouse, // Keller
+  'deck': Icons.deck, // Terrasse/Garten
+  'inventory_2': Icons.inventory_2,
+  'archive': Icons.archive,
+  'shopping_basket': Icons.shopping_basket,
+};
