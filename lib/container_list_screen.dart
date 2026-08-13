@@ -161,18 +161,38 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
 
   Widget _buildLocationCard(StorageLocation loc) {
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10)]),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(24), 
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10)]
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, room: widget.room, storageLocation: loc))),
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Row(
             children: [
               Icon(loc.iconData, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(height: 8),
-              Text(loc.name, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: pw.TextAlign.center, overflow: TextOverflow.ellipsis),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  loc.name, 
+                  style: const TextStyle(fontWeight: FontWeight.bold), 
+                  overflow: TextOverflow.ellipsis
+                ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 18),
+                onSelected: (val) {
+                  if (val == 'edit') _showAddLocationDialog(context, location: loc);
+                  if (val == 'delete') _showDeleteLocationConfirmDialog(context, loc);
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+                  const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+                ],
+              ),
             ],
           ),
         ),
