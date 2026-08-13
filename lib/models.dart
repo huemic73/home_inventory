@@ -22,19 +22,44 @@ class Room {
   IconData get iconData => iconMapping[iconName] ?? Icons.meeting_room;
 }
 
-class InventoryContainer {
+class StorageLocation {
   final String id;
   final String name;
   final String roomId;
   final String iconName;
+  final RecordModel record;
+
+  StorageLocation({required this.id, required this.name, required this.roomId, required this.iconName, required this.record});
+
+  factory StorageLocation.fromRecord(RecordModel record) {
+    final icon = record.getStringValue('icon');
+    return StorageLocation(
+      id: record.id,
+      name: record.getStringValue('name'),
+      roomId: record.getStringValue('room'),
+      iconName: icon.isEmpty ? 'shelves' : icon,
+      record: record,
+    );
+  }
+
+  IconData get iconData => iconMapping[iconName] ?? Icons.shelves;
+}
+
+class InventoryContainer {
+  final String id;
+  final String name;
+  final String roomId;
+  final String? storageLocationId; // Optionaler Ablageort
+  final String iconName;
   final String labelId;
-  final String photo; // Neu: Foto-Feld
+  final String photo;
   final RecordModel record;
 
   InventoryContainer({
     required this.id, 
     required this.name, 
     required this.roomId, 
+    this.storageLocationId,
     required this.iconName,
     required this.labelId,
     required this.photo,
@@ -47,9 +72,10 @@ class InventoryContainer {
       id: record.id,
       name: record.getStringValue('name'),
       roomId: record.getStringValue('room'),
+      storageLocationId: record.getStringValue('storage_location'),
       iconName: icon.isEmpty ? 'inventory_2' : icon,
       labelId: record.getStringValue('labelId'),
-      photo: record.getStringValue('photo'), // Aus PocketBase laden
+      photo: record.getStringValue('photo'),
       record: record,
     );
   }
@@ -99,4 +125,7 @@ final Map<String, IconData> iconMapping = {
   'inventory_2': Icons.inventory_2,
   'archive': Icons.archive,
   'shopping_basket': Icons.shopping_basket,
+  'shelves': Icons.shelves, // Neues Icon für Ablageort
+  'door_sliding': Icons.door_sliding, // Schrank
+  'home_repair_service': Icons.home_repair_service, // Werkbank
 };

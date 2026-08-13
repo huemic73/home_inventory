@@ -25,7 +25,10 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
   }
 
   Future<void> _loadContainers() async {
-    final records = await widget.pb.collection('containers').getFullList(sort: 'name', expand: 'room');
+    final records = await widget.pb.collection('containers').getFullList(
+      sort: 'name', 
+      expand: 'room,storage_location'
+    );
     setState(() {
       _allContainers = records.map((r) => InventoryContainer.fromRecord(r)).toList();
       _selectedIds.addAll(_allContainers.map((c) => c.id));
@@ -38,69 +41,70 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
       final doc = pw.Document();
       final containersToPrint = _allContainers.where((c) => _selectedIds.contains(c.id)).toList();
 
+      final Map<String, List<InventoryContainer>> grouped = {};
+      for (var c in containersToPrint) {
+        final roomName = c.record.expand['room']?.first.getStringValue('name') ?? 'Unbekannter Ort';
+        grouped.putIfAbsent(roomName, () => []).add(c);
+      }
+
       doc.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(32),
-          build: (pw.Context context) => [
-            pw.Header(level: 0, text: 'Inventar Labels'),
-            pw.SizedBox(height: 20),
-            pw.Wrap(
-              spacing: 20,
-              runSpacing: 20,
-              children: containersToPrint.map((container) {
-                return pw.Container(
-                  width: 150,
-                  height: 180,
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey400),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
-                  ),
-                  padding: const pw.EdgeInsets.all(10),
-                  child: pw.Column(
-                    mainAxisAlignment: pw.MainAxisAlignment.center,
-                    children: [
-                      pw.Text(
-                        container.name, 
-                        style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold), 
-                        textAlign: pw.TextAlign.center,
-                        maxLines: 2,
+          build: (pw.Context context) {
+            List<pw.Widget> widgets = [
+              pw.Header(level: 0, text: 'Heiminventarisierung - Inventurliste'),
+              pw.SizedBox(height: 20),
+            ];
+
+            grouped.forEach((roomName, containers) {
+              widgets.add(
+                pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 10),
+                  child: pw.Text('Raum: $roomName', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.indigo900)),
+                ),
+              );
+
+              widgets.add(
+                pw.Wrap(
+                  spacing: 15, runSpacing: 15,
+                  children: containers.map((container) {
+                    String locationText = roomName;
+                    final locRecord = container.record.expand['storage_location']?.first;
+                    if (locRecord != null) {
+                      locationText += ' > ${locRecord.getStringValue('name')}';
+                    }
+
+                    return pw.Container(
+                      width: 140, height: 170,
+                      decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400), borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10))),
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Column(
+                        mainAxisAlignment: pw.MainAxisAlignment.center,
+                        children: [
+                          pw.Text(container.name, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center, maxLines: 2),
+                          pw.SizedBox(height: 4),
+                          pw.Text(locationText, style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700), textAlign: pw.TextAlign.center),
+                          pw.SizedBox(height: 8),
+                          pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: 'home_inventory_container:${container.id}', width: 75, height: 75),
+                          pw.SizedBox(height: 4),
+                          pw.Text('ID: ${container.id.substring(0, 8)}', style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
+                        ],
                       ),
-                      // Neuen Ort (Raum) hinzufügen
-                      pw.SizedBox(height: 2),
-                      pw.Text(
-                        'Ort: ${container.record.expand['room']?.first.getStringValue('name') ?? 'Unbekannt'}',
-                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                      pw.SizedBox(height: 8),
-                      pw.BarcodeWidget(
-                        barcode: pw.Barcode.qrCode(),
-                        data: 'home_inventory_container:${container.id}',
-                        width: 100,
-                        height: 100,
-                      ),
-                      pw.SizedBox(height: 5),
-                      pw.Text('ID: ${container.id}', style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
+                    );
+                  }).toList(),
+                ),
+              );
+              widgets.add(pw.SizedBox(height: 20));
+              widgets.add(pw.Divider(thickness: 0.5, color: PdfColors.grey300));
+            });
+            return widgets;
+          },
         ),
       );
-
-      await Printing.layoutPdf(
-        onLayout: (format) async => doc.save(), 
-        name: 'Container_Labels.pdf'
-      );
+      await Printing.layoutPdf(onLayout: (format) async => doc.save(), name: 'Inventur_Struktur.pdf');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Druckfehler: $e'), backgroundColor: Colors.red),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Druckfehler: $e'), backgroundColor: Colors.red));
     }
   }
 
