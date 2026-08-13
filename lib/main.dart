@@ -15,7 +15,7 @@ class HomeInventoryApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Ersetze diese IP mit der echten IPv4-Adresse deines PCs (aus ipconfig)
     // 10.0.2.2 ist nur für den Emulator!
-    const String pcIp = '192.168.178.77'; // Hier die PC-IP eintragen (z.B. .20)
+    const String pcIp = '192.168.178.54'; // Hier die PC-IP eintragen (z.B. .20)
     
     String baseUrl = 'http://127.0.0.1:8090';
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
