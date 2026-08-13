@@ -11,6 +11,7 @@ class ItemListScreen extends StatefulWidget {
   final PocketBase pb;
   final InventoryContainer? container;
   final Room? room;
+  final StorageLocation? storageLocation; // Neu: Für die volle Pfadanzeige
   final bool onlyUnassigned;
 
   const ItemListScreen({
@@ -18,6 +19,7 @@ class ItemListScreen extends StatefulWidget {
     required this.pb, 
     this.container, 
     this.room, 
+    this.storageLocation,
     this.onlyUnassigned = false
   });
 
@@ -66,7 +68,12 @@ class _ItemListScreenState extends State<ItemListScreen> {
 
     if (widget.container != null) {
       title = widget.container!.name;
-      if (widget.room != null) subtitle = 'In Raum: ${widget.room!.name}';
+      if (widget.room != null) {
+        subtitle = 'In: ${widget.room!.name}';
+        if (widget.storageLocation != null) {
+          subtitle += ' > ${widget.storageLocation!.name}';
+        }
+      }
       if (widget.container!.photo.isNotEmpty) {
         containerImageUrl = widget.pb.files.getUrl(widget.container!.record, widget.container!.photo).toString();
       }

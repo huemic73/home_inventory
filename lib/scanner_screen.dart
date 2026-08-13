@@ -44,23 +44,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
       // 1. Suche: Gibt es einen Container, der diese ID als manuelle 'labelId' hat?
       var result = await widget.pb.collection('containers').getList(
         filter: 'labelId = "$id"',
-        expand: 'room',
+        expand: 'room,storage_location', // Auch Ablageort expandieren
       );
 
       // 2. Suche: Falls nicht gefunden, prüfe ob es die primäre Datenbank-ID ist
       if (result.items.isEmpty) {
         try {
-          final record = await widget.pb.collection('containers').getOne(id, expand: 'room');
+          final record = await widget.pb.collection('containers').getOne(id, expand: 'room,storage_location');
           _navigateToItems(record);
           return;
-        } catch (_) {
-          // Nicht als ID gefunden
-        }
+        } catch (_) {}
       } else {
         _navigateToItems(result.items.first);
         return;
       }
-
       _resetScanner('Dieser QR-Code ist keiner Box zugeordnet.');
     } catch (e) {
       _resetScanner('Fehler beim Scannen: $e');
@@ -70,14 +67,24 @@ class _ScannerScreenState extends State<ScannerScreen> {
   void _navigateToItems(RecordModel record) {
     final container = InventoryContainer.fromRecord(record);
     Room? room;
-    if (record.expand['room'] != null) {
-      room = Room.fromRecord(record.expand['room']!.first);
+    if (record.expand['room'] != null) room = Room.fromRecord(record.expand['room']!.first);
+    
+    StorageLocation? location;
+    if (record.expand['storage_location'] != null) {
+      location = StorageLocation.fromRecord(record.expand['storage_location']!.first);
     }
 
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, container: container, room: room)),
+        MaterialPageRoute(
+          builder: (context) => ItemListScreen(
+            pb: widget.pb, 
+            container: container, 
+            room: room,
+            storageLocation: location, // Location mitgeben
+          ),
+        ),
       );
     }
   }
