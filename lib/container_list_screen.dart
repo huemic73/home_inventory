@@ -251,11 +251,27 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                 ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
-                  onSelected: (val) {
+                  onSelected: (val) async {
                     if (val == 'edit') _showAddContainerDialog(context, container: container);
                     if (val == 'delete') _showDeleteConfirmDialog(context, container);
+                    if (val == 'move') {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MoveContainerScreen(
+                            pb: widget.pb,
+                            container: container,
+                          ),
+                        ),
+                      );
+                      if (result == true) _refreshData();
+                    }
                   },
-                  itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), const PopupMenuItem(value: 'delete', child: Text('Löschen'))],
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+                    const PopupMenuItem(value: 'move', child: Text('Verschieben')),
+                    const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+                  ],
                 ),
               ],
             ),
