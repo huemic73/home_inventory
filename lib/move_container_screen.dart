@@ -42,6 +42,12 @@ class _MoveContainerScreenState extends State<MoveContainerScreen> {
     );
     setState(() {
       _locations = records.map((r) => StorageLocation.fromRecord(r)).toList();
+      
+      // WICHTIG: Prüfen, ob die aktuelle Auswahl in der neuen Liste existiert
+      if (_selectedLocationId != null && 
+          !_locations!.any((l) => l.id == _selectedLocationId)) {
+        _selectedLocationId = null;
+      }
     });
   }
 
@@ -133,14 +139,20 @@ class _MoveContainerScreenState extends State<MoveContainerScreen> {
                 color: _selectedRoomId == null ? Colors.grey.withAlpha(10) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: DropdownButtonFormField<String>(
+              child: DropdownButtonFormField<String?>( // Typ auf String? geändert
                 isExpanded: true,
                 decoration: const InputDecoration(border: InputBorder.none),
                 value: _selectedLocationId,
                 hint: const Text('Direkt im Raum (kein spezieller Ort)'),
                 items: [
-                  const DropdownMenuItem<String>(value: null, child: Text('Direkt im Raum')),
-                  ...?_locations?.map((l) => DropdownMenuItem(value: l.id, child: Row(children: [Icon(l.iconData, size: 20), const SizedBox(width: 12), Text(l.name)]))),
+                  const DropdownMenuItem<String?>(
+                    value: null, 
+                    child: Text('Direkt im Raum (kein Ort)')
+                  ),
+                  ...?_locations?.map((l) => DropdownMenuItem<String?>(
+                    value: l.id, 
+                    child: Row(children: [Icon(l.iconData, size: 20), const SizedBox(width: 12), Text(l.name)])
+                  )),
                 ],
                 onChanged: _selectedRoomId == null ? null : (val) => setState(() => _selectedLocationId = val),
               ),
