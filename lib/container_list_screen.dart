@@ -7,12 +7,12 @@ import 'dart:io' as io;
 import 'models.dart';
 import 'item_list_screen.dart';
 import 'scanner_screen.dart';
-import 'move_container_screen.dart'; 
+import 'move_container_screen.dart';
 
 class ContainerListScreen extends StatefulWidget {
   final PocketBase pb;
   final Room room;
-  final StorageLocation? storageLocation; // Optionaler Filter
+  final StorageLocation? storageLocation;
 
   const ContainerListScreen({super.key, required this.pb, required this.room, this.storageLocation});
 
@@ -23,6 +23,7 @@ class ContainerListScreen extends StatefulWidget {
 class _ContainerListScreenState extends State<ContainerListScreen> {
   late Future<Map<String, dynamic>> _dataFuture;
   Map<String, int> _containerItemCounts = {};
+  Map<String, int> _locationContainerCounts = {}; // Neu: Kisten pro Regal
   bool _onlyWithItems = false;
 
   @override
@@ -37,7 +38,6 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchData() async {
-    // 1. Ablageorte im Raum laden (nur wenn wir nicht schon in einem sind)
     List<StorageLocation> locations = [];
     if (widget.storageLocation == null) {
       final locRecords = await widget.pb.collection('storage_locations').getFullList(
@@ -47,23 +47,29 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       locations = locRecords.map((r) => StorageLocation.fromRecord(r)).toList();
     }
 
-    // 2. Container laden
     String filter = 'room = "${widget.room.id}"';
     if (widget.storageLocation != null) {
       filter += ' && storage_location = "${widget.storageLocation!.id}"';
     } else {
-      // Wenn wir auf Raum-Ebene sind, zeigen wir nur Container ohne Ablageort direkt an?
-      // Oder alle? Ich schlage vor: Nur die ohne Ablageort, um Duplikate zu vermeiden.
       filter += ' && storage_location = ""';
     }
 
-    final contRecords = await widget.pb.collection('containers').getFullList(
-      filter: filter,
-      sort: 'name',
-    );
+    final contRecords = await widget.pb.collection('containers').getFullList(filter: filter, sort: 'name');
     final containers = contRecords.map((r) => InventoryContainer.fromRecord(r)).toList();
     
-    // 3. Item Counts
+    // Zähle Container pro Ablageort im ganzen Raum (für die Übersichtskacheln)
+    final allRoomContRecords = await widget.pb.collection('containers').getFullList(
+      filter: 'room = "${widget.room.id}"',
+      fields: 'storage_location',
+    );
+    final Map<String, int> locCounts = {};
+    for (var r in allRoomContRecords) {
+      final locId = r.getStringValue('storage_location');
+      if (locId.isNotEmpty) {
+        locCounts[locId] = (locCounts[locId] ?? 0) + 1;
+      }
+    }
+
     final itemRecords = await widget.pb.collection('items').getFullList(fields: 'container');
     final Map<String, int> counts = {};
     for (var record in itemRecords) {
@@ -71,8 +77,12 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       if (containerId.isNotEmpty) counts[containerId] = (counts[containerId] ?? 0) + 1;
     }
     
-    if (mounted) setState(() => _containerItemCounts = counts);
-
+    if (mounted) {
+      setState(() {
+        _containerItemCounts = counts;
+        _locationContainerCounts = locCounts;
+      });
+    }
     return {'locations': locations, 'containers': containers};
   }
 
@@ -117,10 +127,6 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                 final locations = snapshot.data!['locations'] as List<StorageLocation>;
                 var containers = snapshot.data!['containers'] as List<InventoryContainer>;
 
-                if (_onlyWithItems) {
-                  containers = containers.where((c) => (_containerItemCounts[c.id] ?? 0) > 0).toList();
-                }
-
                 return SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   sliver: SliverList(
@@ -154,33 +160,48 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   Widget _buildLocationsGrid(List<StorageLocation> locations) {
     return GridView.builder(
       shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 200, mainAxisExtent: 100, mainAxisSpacing: 12, crossAxisSpacing: 12),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 450, mainAxisExtent: 130, mainAxisSpacing: 12, crossAxisSpacing: 12),
       itemCount: locations.length,
       itemBuilder: (context, index) => _buildLocationCard(locations[index]),
     );
   }
 
   Widget _buildLocationCard(StorageLocation loc) {
+    String imageUrl = loc.photo.isNotEmpty ? widget.pb.files.getUrl(loc.record, loc.photo).toString() : '';
+    final containerCount = _locationContainerCounts[loc.id] ?? 0;
+
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white, 
-        borderRadius: BorderRadius.circular(24), 
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10)]
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(32), boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 4))]),
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(32),
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, room: widget.room, storageLocation: loc))),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(loc.iconData, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 12),
+              Container(
+                width: 80, height: 80,
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), borderRadius: BorderRadius.circular(20)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: imageUrl.isNotEmpty 
+                    ? Image.network(imageUrl, fit: BoxFit.cover) 
+                    : Icon(loc.iconData, color: Theme.of(context).colorScheme.primary, size: 32),
+                ),
+              ),
+              const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  loc.name, 
-                  style: const TextStyle(fontWeight: FontWeight.bold), 
-                  overflow: TextOverflow.ellipsis
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(loc.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withAlpha(100), borderRadius: BorderRadius.circular(20)),
+                      child: Text('$containerCount Container', style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               ),
               PopupMenuButton<String>(
@@ -189,10 +210,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                   if (val == 'edit') _showAddLocationDialog(context, location: loc);
                   if (val == 'delete') _showDeleteLocationConfirmDialog(context, loc);
                 },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                  const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-                ],
+                itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), const PopupMenuItem(value: 'delete', child: Text('Löschen'))],
               ),
             ],
           ),
@@ -255,23 +273,11 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                     if (val == 'edit') _showAddContainerDialog(context, container: container);
                     if (val == 'delete') _showDeleteConfirmDialog(context, container);
                     if (val == 'move') {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MoveContainerScreen(
-                            pb: widget.pb,
-                            container: container,
-                          ),
-                        ),
-                      );
+                      final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, container: container)));
                       if (result == true) _refreshData();
                     }
                   },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                    const PopupMenuItem(value: 'move', child: Text('Verschieben')),
-                    const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-                  ],
+                  itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), const PopupMenuItem(value: 'move', child: Text('Verschieben')), const PopupMenuItem(value: 'delete', child: Text('Löschen'))],
                 ),
               ],
             ),
@@ -308,28 +314,73 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   void _showAddLocationDialog(BuildContext context, {StorageLocation? location}) {
     final controller = TextEditingController(text: location?.name);
     String selectedIcon = location?.iconName ?? 'shelves';
+    XFile? pickedFile;
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
           title: Text(location == null ? 'Neuer Ablageort' : 'Ort bearbeiten'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name (z.B. Regal A)', border: OutlineInputBorder())),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 8, runSpacing: 8,
-                children: ['shelves', 'door_sliding', 'home_repair_service'].map((key) => GestureDetector(
-                  onTap: () => setState(() => selectedIcon = key),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    showModalBottomSheet(
+                      context: context,
+                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+                      builder: (bottomSheetContext) => SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _buildSourceOption(context, Icons.photo_camera, 'Kamera', () async {
+                                Navigator.pop(bottomSheetContext);
+                                final picker = ImagePicker();
+                                final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
+                                if (file != null) setState(() => pickedFile = file);
+                              }),
+                              _buildSourceOption(context, Icons.photo_library, 'Galerie', () async {
+                                Navigator.pop(bottomSheetContext);
+                                final picker = ImagePicker();
+                                final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
+                                if (file != null) setState(() => pickedFile = file);
+                              }),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                   child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: selectedIcon == key ? Theme.of(context).colorScheme.primary : Colors.grey.withAlpha(20), borderRadius: BorderRadius.circular(16)),
-                    child: Icon(iconMapping[key], color: selectedIcon == key ? Colors.white : Colors.black54),
+                    height: 140, width: double.infinity,
+                    decoration: BoxDecoration(color: Colors.grey.withAlpha(20), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.withAlpha(40))),
+                    child: pickedFile != null
+                        ? ClipRRect(borderRadius: BorderRadius.circular(24), child: kIsWeb ? Image.network(pickedFile!.path, fit: BoxFit.cover) : Image.file(io.File(pickedFile!.path), fit: BoxFit.cover))
+                        : (location?.photo.isNotEmpty == true && pickedFile == null)
+                            ? ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.network(widget.pb.files.getUrl(location!.record, location.photo).toString(), fit: BoxFit.cover))
+                            : Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo, color: Theme.of(context).colorScheme.primary), const Text('Foto hinzufügen', style: TextStyle(fontSize: 12))]),
                   ),
-                )).toList(),
-              ),
-            ],
+                ),
+                const SizedBox(height: 16),
+                TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name (z.B. Regal A)', border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16))))),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: ['shelves', 'door_sliding', 'home_repair_service'].map((key) => GestureDetector(
+                    onTap: () => setState(() => selectedIcon = key),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: selectedIcon == key ? Theme.of(context).colorScheme.primary : Colors.grey.withAlpha(20), borderRadius: BorderRadius.circular(16)),
+                      child: Icon(iconMapping[key], color: selectedIcon == key ? Colors.white : Colors.black54),
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
@@ -337,14 +388,26 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
               onPressed: () async {
                 if (controller.text.isNotEmpty) {
                   final data = {'name': controller.text, 'icon': selectedIcon};
-                  if (location == null) {
-                    data['room'] = widget.room.id;
-                    await widget.pb.collection('storage_locations').create(body: data);
-                  } else {
-                    await widget.pb.collection('storage_locations').update(location.id, body: data);
+                  List<http.MultipartFile> files = [];
+                  if (pickedFile != null) {
+                    if (kIsWeb) {
+                      final bytes = await pickedFile!.readAsBytes();
+                      files.add(http.MultipartFile.fromBytes('photo', bytes, filename: pickedFile!.name));
+                    } else {
+                      files.add(await http.MultipartFile.fromPath('photo', pickedFile!.path));
+                    }
                   }
-                  if (context.mounted) Navigator.pop(context);
-                  _refreshData();
+
+                  try {
+                    if (location == null) {
+                      data['room'] = widget.room.id;
+                      await widget.pb.collection('storage_locations').create(body: data, files: files);
+                    } else {
+                      await widget.pb.collection('storage_locations').update(location.id, body: data, files: files);
+                    }
+                    if (context.mounted) Navigator.pop(context);
+                    _refreshData();
+                  } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
                 }
               },
               child: const Text('Speichern'),
@@ -356,24 +419,13 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   }
 
   void _showDeleteLocationConfirmDialog(BuildContext context, StorageLocation loc) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ort löschen?'),
-        content: Text('Soll "${loc.name}" wirklich gelöscht werden? Die darin enthaltenen Container bleiben im Raum erhalten, verlieren aber ihren Platz.'),
-        actions: [
+    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Ort löschen?'), content: Text('Soll "${loc.name}" wirklich gelöscht werden?'), actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-          TextButton(
-            onPressed: () async {
+          TextButton(onPressed: () async {
               final nav = Navigator.of(context);
               await widget.pb.collection('storage_locations').delete(loc.id);
-              if (context.mounted) {
-                nav.pop();
-                _refreshData();
-              }
-            }, 
-            child: const Text('Löschen', style: TextStyle(color: Colors.red))
-          ),
+              if (context.mounted) { nav.pop(); _refreshData(); }
+            }, child: const Text('Löschen', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -477,8 +529,12 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
 
                   List<http.MultipartFile> files = [];
                   if (pickedFile != null) {
-                    final bytes = await pickedFile!.readAsBytes();
-                    files.add(http.MultipartFile.fromBytes('photo', bytes, filename: pickedFile!.name));
+                    if (kIsWeb) {
+                      final bytes = await pickedFile!.readAsBytes();
+                      files.add(http.MultipartFile.fromBytes('photo', bytes, filename: pickedFile!.name));
+                    } else {
+                      files.add(await http.MultipartFile.fromPath('photo', pickedFile!.path));
+                    }
                   }
                   try {
                     if (container == null) {

@@ -27,9 +27,10 @@ class StorageLocation {
   final String name;
   final String roomId;
   final String iconName;
+  final String photo; // Neu: Foto für Ablageort
   final RecordModel record;
 
-  StorageLocation({required this.id, required this.name, required this.roomId, required this.iconName, required this.record});
+  StorageLocation({required this.id, required this.name, required this.roomId, required this.iconName, required this.photo, required this.record});
 
   factory StorageLocation.fromRecord(RecordModel record) {
     final icon = record.getStringValue('icon');
@@ -38,6 +39,7 @@ class StorageLocation {
       name: record.getStringValue('name'),
       roomId: record.getStringValue('room'),
       iconName: icon.isEmpty ? 'shelves' : icon,
+      photo: record.getStringValue('photo'),
       record: record,
     );
   }
