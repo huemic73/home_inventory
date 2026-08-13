@@ -19,6 +19,7 @@ class RoomListScreen extends StatefulWidget {
 class _RoomListScreenState extends State<RoomListScreen> {
   late Future<List<Room>> _roomsFuture;
   Map<String, int> _roomContainerCounts = {};
+  Map<String, int> _roomLocationCounts = {}; // Neu: Zähler für Orte
   int _unassignedItemCount = 0; // Neu: Zähler für lose Artikel
   bool _onlyWithContainers = false;
 
@@ -43,6 +44,13 @@ class _RoomListScreenState extends State<RoomListScreen> {
       final roomId = record.getStringValue('room');
       counts[roomId] = (counts[roomId] ?? 0) + 1;
     }
+
+    final locationRecords = await widget.pb.collection('storage_locations').getFullList(fields: 'room');
+    final Map<String, int> locCounts = {};
+    for (var record in locationRecords) {
+      final roomId = record.getStringValue('room');
+      locCounts[roomId] = (locCounts[roomId] ?? 0) + 1;
+    }
     
     // Zähle lose Artikel (ohne Container)
     final unassignedItems = await widget.pb.collection('items').getFullList(
@@ -53,6 +61,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
     if (mounted) {
       setState(() {
         _roomContainerCounts = counts;
+        _roomLocationCounts = locCounts;
         _unassignedItemCount = unassignedItems.length;
       });
     }
@@ -314,6 +323,11 @@ class _RoomListScreenState extends State<RoomListScreen> {
 
   Widget _buildRoomCard(BuildContext context, Room room) {
     final containerCount = _roomContainerCounts[room.id] ?? 0;
+    final locationCount = _roomLocationCounts[room.id] ?? 0;
+    String subtitle = '$containerCount Container';
+    if (locationCount > 0) {
+      subtitle = '$locationCount Orte · $containerCount Container';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -367,7 +381,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
                 const Spacer(),
                 Text(room.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                Text('$containerCount Container', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontWeight: FontWeight.w600, fontSize: 12)),
+                Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontWeight: FontWeight.w600, fontSize: 12)),
               ],
             ),
           ),
