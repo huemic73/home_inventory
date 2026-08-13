@@ -66,7 +66,14 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                         textAlign: pw.TextAlign.center,
                         maxLines: 2,
                       ),
-                      pw.SizedBox(height: 10),
+                      // Neuen Ort (Raum) hinzufügen
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'Ort: ${container.record.expand['room']?.first.getStringValue('name') ?? 'Unbekannt'}',
+                        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                      pw.SizedBox(height: 8),
                       pw.BarcodeWidget(
                         barcode: pw.Barcode.qrCode(),
                         data: 'home_inventory_container:${container.id}',

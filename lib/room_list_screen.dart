@@ -5,6 +5,7 @@ import 'container_list_screen.dart';
 import 'item_list_screen.dart';
 import 'scanner_screen.dart';
 import 'bulk_qr_print_screen.dart';
+import 'user_profile_screen.dart'; // Import hinzugefügt
 
 class RoomListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -237,12 +238,20 @@ class _RoomListScreenState extends State<RoomListScreen> {
           icon: const Icon(Icons.print_outlined),
           label: const Text('Etiketten'),
         ),
+        NavigationDrawerDestination(
+          icon: const Icon(Icons.person_outline),
+          label: const Text('Profil & Sicherheit'),
+        ),
         const Divider(),
         const AboutListTile(icon: Icon(Icons.info_outline), applicationName: 'Heiminventarisierung'),
       ],
       onDestinationSelected: (index) {
         Navigator.pop(context);
-        if (index == 1) Navigator.push(context, MaterialPageRoute(builder: (context) => BulkQrPrintScreen(pb: widget.pb)));
+        if (index == 1) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => BulkQrPrintScreen(pb: widget.pb)));
+        } else if (index == 2) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => UserProfileScreen(pb: widget.pb)));
+        }
       },
     );
   }

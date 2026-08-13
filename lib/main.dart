@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import hinzugefügt
 import 'room_list_screen.dart';
+import 'login_screen.dart'; // Import hinzugefügt
 
 void main() {
   runApp(const HomeInventoryApp());
@@ -24,6 +25,9 @@ class HomeInventoryApp extends StatelessWidget {
     }
 
     final pb = PocketBase(baseUrl);
+
+    // Prüfen, ob der Benutzer bereits eingeloggt ist
+    final bool isLoggedIn = pb.authStore.isValid;
 
     return MaterialApp(
       title: 'Heiminventarisierung',
@@ -55,7 +59,8 @@ class HomeInventoryApp extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
       ),
-      home: RoomListScreen(pb: pb),
+      // Zeige Login-Screen, wenn nicht eingeloggt
+      home: isLoggedIn ? RoomListScreen(pb: pb) : LoginScreen(pb: pb),
     );
   }
 }
