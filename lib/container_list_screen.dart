@@ -288,18 +288,18 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     );
   }
 
-  void _showAddLocationDialog(BuildContext context) {
-    final controller = TextEditingController();
-    String selectedIcon = 'shelves';
+  void _showAddLocationDialog(BuildContext context, {StorageLocation? location}) {
+    final controller = TextEditingController(text: location?.name);
+    String selectedIcon = location?.iconName ?? 'shelves';
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Neuer Ablageort'),
+          title: Text(location == null ? 'Neuer Ablageort' : 'Ort bearbeiten'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name (z.B. Regal A, Schrank links)', border: OutlineInputBorder())),
+              TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name (z.B. Regal A)', border: OutlineInputBorder())),
               const SizedBox(height: 20),
               Wrap(
                 spacing: 8, runSpacing: 8,
@@ -319,7 +319,13 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
             FilledButton(
               onPressed: () async {
                 if (controller.text.isNotEmpty) {
-                  await widget.pb.collection('storage_locations').create(body: {'name': controller.text, 'room': widget.room.id, 'icon': selectedIcon});
+                  final data = {'name': controller.text, 'icon': selectedIcon};
+                  if (location == null) {
+                    data['room'] = widget.room.id;
+                    await widget.pb.collection('storage_locations').create(body: data);
+                  } else {
+                    await widget.pb.collection('storage_locations').update(location.id, body: data);
+                  }
                   if (context.mounted) Navigator.pop(context);
                   _refreshData();
                 }
@@ -328,6 +334,30 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDeleteLocationConfirmDialog(BuildContext context, StorageLocation loc) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ort löschen?'),
+        content: Text('Soll "${loc.name}" wirklich gelöscht werden? Die darin enthaltenen Container bleiben im Raum erhalten, verlieren aber ihren Platz.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await widget.pb.collection('storage_locations').delete(loc.id);
+              if (context.mounted) {
+                nav.pop();
+                _refreshData();
+              }
+            }, 
+            child: const Text('Löschen', style: TextStyle(color: Colors.red))
+          ),
+        ],
       ),
     );
   }
