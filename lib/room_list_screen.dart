@@ -3,9 +3,8 @@ import 'package:pocketbase/pocketbase.dart';
 import 'models.dart';
 import 'container_list_screen.dart';
 import 'item_list_screen.dart';
-import 'scanner_screen.dart'; // Import hinzugefügt
-
-import 'bulk_qr_print_screen.dart'; // Import hinzugefügt
+import 'scanner_screen.dart';
+import 'bulk_qr_print_screen.dart';
 
 class RoomListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -19,6 +18,8 @@ class RoomListScreen extends StatefulWidget {
 class _RoomListScreenState extends State<RoomListScreen> {
   late Future<List<Room>> _roomsFuture;
   Map<String, int> _roomContainerCounts = {};
+  int _unassignedItemCount = 0; // Neu: Zähler für lose Artikel
+  bool _onlyWithContainers = false;
 
   @override
   void initState() {
@@ -35,7 +36,6 @@ class _RoomListScreenState extends State<RoomListScreen> {
     final records = await widget.pb.collection('rooms').getFullList(sort: 'name');
     final rooms = records.map((r) => Room.fromRecord(r)).toList();
     
-    // Zähle Container pro Raum
     final containerRecords = await widget.pb.collection('containers').getFullList(fields: 'room');
     final Map<String, int> counts = {};
     for (var record in containerRecords) {
@@ -43,98 +43,262 @@ class _RoomListScreenState extends State<RoomListScreen> {
       counts[roomId] = (counts[roomId] ?? 0) + 1;
     }
     
-    setState(() {
-      _roomContainerCounts = counts;
-    });
+    // Zähle lose Artikel (ohne Container)
+    final unassignedItems = await widget.pb.collection('items').getFullList(
+      filter: 'container = ""',
+      fields: 'id',
+    );
+    
+    if (mounted) {
+      setState(() {
+        _roomContainerCounts = counts;
+        _unassignedItemCount = unassignedItems.length;
+      });
+    }
 
     return rooms;
-  }
-
-  void _openScanner(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ScannerScreen(pb: widget.pb),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar.large(
-            title: const Text('Mein Inventar'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.print),
-                tooltip: 'Labels drucken',
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => BulkQrPrintScreen(pb: widget.pb))),
-              ),
-              IconButton(
-                icon: const Icon(Icons.qr_code_scanner),
-                tooltip: 'Container scannen',
-                onPressed: () => _openScanner(context),
-              ),
-              IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb)))),
-              IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshRooms),
+      drawer: _buildDrawer(context),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.primary.withAlpha(20),
+              Theme.of(context).scaffoldBackgroundColor,
             ],
           ),
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverToBoxAdapter(
-              child: _buildSpecialTile(
-                context,
-                title: 'Ohne Zuordnung',
-                icon: Icons.help_center_outlined,
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, onlyUnassigned: true))),
+        ),
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 120,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              pinned: true,
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                title: Text(
+                  'Heiminventarisierung',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(10),
+                          blurRadius: 10,
+                        )
+                      ],
+                    ),
+                    child: Icon(Icons.qr_code_scanner, color: Theme.of(context).colorScheme.primary, size: 20),
+                  ),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb))),
+                ),
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(10),
+                          blurRadius: 10,
+                        )
+                      ],
+                    ),
+                    child: Icon(Icons.search, color: Theme.of(context).colorScheme.primary, size: 20),
+                  ),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb))),
+                ),
+                const SizedBox(width: 16),
+              ],
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                child: _buildSpecialTile(context),
               ),
             ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: FutureBuilder<List<Room>>(
-              future: _roomsFuture,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
-                final rooms = snapshot.data!;
-                
-                return SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 450, // Etwas breiter erlaubt
-                    mainAxisExtent: 130,     // Mehr Höhe für die Kacheln gegen den Overflow
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildRoomCard(context, rooms[index]),
-                    childCount: rooms.length,
-                  ),
-                );
-              },
+            SliverToBoxAdapter(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    FilterChip(
+                      label: const Text('Alle Räume'),
+                      selected: !_onlyWithContainers,
+                      onSelected: (val) => setState(() => _onlyWithContainers = false),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      showCheckmark: false,
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: const Text('Nur mit Containern'),
+                      selected: _onlyWithContainers,
+                      onSelected: (val) => setState(() => _onlyWithContainers = true),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      showCheckmark: false,
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ],
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              sliver: FutureBuilder<List<Room>>(
+                future: _roomsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+                  }
+                  var rooms = snapshot.data ?? [];
+                  
+                  // Filter anwenden
+                  if (_onlyWithContainers) {
+                    rooms = rooms.where((r) => (_roomContainerCounts[r.id] ?? 0) > 0).toList();
+                  }
+
+                  if (rooms.isEmpty) {
+                    return SliverToBoxAdapter(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 40),
+                          child: Text(_onlyWithContainers ? 'Keine Räume mit Containern gefunden.' : 'Starte dein Inventar!'),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 400,
+                      mainAxisExtent: 180, // Größere Kacheln für schöneres Design
+                      mainAxisSpacing: 20,
+                      crossAxisSpacing: 20,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _buildRoomCard(context, rooms[index]),
+                      childCount: rooms.length,
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddRoomDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Neuer Raum'),
+        child: const Icon(Icons.add, size: 32),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
-  Widget _buildSpecialTile(BuildContext context, {required String title, required IconData icon, required VoidCallback onTap}) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  Widget _buildDrawer(BuildContext context) {
+    return NavigationDrawer(
+      backgroundColor: Colors.white,
+      children: [
+        const DrawerHeader(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text('Heiminventar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              Text('Modern & Strukturiert'),
+            ],
+          ),
+        ),
+        NavigationDrawerDestination(
+          icon: const Icon(Icons.dashboard_outlined),
+          selectedIcon: const Icon(Icons.dashboard),
+          label: const Text('Übersicht'),
+        ),
+        NavigationDrawerDestination(
+          icon: const Icon(Icons.print_outlined),
+          label: const Text('Etiketten'),
+        ),
+        const Divider(),
+        const AboutListTile(icon: Icon(Icons.info_outline), applicationName: 'Heiminventarisierung'),
+      ],
+      onDestinationSelected: (index) {
+        Navigator.pop(context);
+        if (index == 1) Navigator.push(context, MaterialPageRoute(builder: (context) => BulkQrPrintScreen(pb: widget.pb)));
+      },
+    );
+  }
+
+  Widget _buildSpecialTile(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _unassignedItemCount > 0 
+            ? Theme.of(context).colorScheme.primary 
+            : Theme.of(context).colorScheme.surfaceVariant.withAlpha(150),
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          if (_unassignedItemCount > 0)
+            BoxShadow(
+              color: Theme.of(context).colorScheme.primary.withAlpha(60),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            )
+        ],
+      ),
       child: ListTile(
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        title: Text(
+          'Ohne Zuordnung', 
+          style: TextStyle(
+            color: _unassignedItemCount > 0 ? Colors.white : Colors.black87, 
+            fontWeight: FontWeight.bold, 
+            fontSize: 18
+          )
+        ),
+        subtitle: Text(
+          _unassignedItemCount > 0 
+              ? '$_unassignedItemCount Artikel warten auf einen Platz' 
+              : 'Alles perfekt einsortiert!',
+          style: TextStyle(
+            color: _unassignedItemCount > 0 ? Colors.white70 : Colors.black54,
+          )
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: _unassignedItemCount > 0 ? Colors.white24 : Colors.black12, 
+            shape: BoxShape.circle
+          ),
+          child: Icon(
+            _unassignedItemCount > 0 ? Icons.arrow_forward : Icons.check, 
+            color: _unassignedItemCount > 0 ? Colors.white : Colors.black54
+          ),
+        ),
+        onTap: () async {
+          await Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, onlyUnassigned: true))
+          );
+          _refreshRooms();
+        },
       ),
     );
   }
@@ -142,61 +306,61 @@ class _RoomListScreenState extends State<RoomListScreen> {
   Widget _buildRoomCard(BuildContext context, Room room) {
     final containerCount = _roomContainerCounts[room.id] ?? 0;
 
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(10),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () async {
-          await Navigator.push(
-            context, 
-            MaterialPageRoute(
-              builder: (context) => ContainerListScreen(pb: widget.pb, room: room)
-            ),
-          );
-          _refreshRooms();
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Icon(room.iconData, color: Theme.of(context).colorScheme.primary, size: 28),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(32),
+          onTap: () async {
+            await Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, room: room)));
+            _refreshRooms();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      room.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '$containerCount Container',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.secondary,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withAlpha(20),
+                        borderRadius: BorderRadius.circular(16),
                       ),
+                      child: Icon(room.iconData, color: Theme.of(context).colorScheme.primary, size: 28),
+                    ),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_horiz),
+                      onSelected: (val) {
+                        if (val == 'edit') _showAddRoomDialog(context, room: room);
+                        if (val == 'delete') _showDeleteConfirmDialog(context, room);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+                        const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+                      ],
                     ),
                   ],
                 ),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, size: 20),
-                onSelected: (val) {
-                  if (val == 'edit') _showAddRoomDialog(context, room: room);
-                  if (val == 'delete') _showDeleteConfirmDialog(context, room);
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                  const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-                ],
-              ),
-            ],
+                const Spacer(),
+                Text(room.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text('$containerCount Container', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontWeight: FontWeight.w600, fontSize: 12)),
+              ],
+            ),
           ),
         ),
       ),
@@ -211,28 +375,26 @@ class _RoomListScreenState extends State<RoomListScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
           title: Text(room == null ? 'Neuer Raum' : 'Raum bearbeiten'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder())),
-                const SizedBox(height: 20),
-                const Text('Icon wählen:'),
-                const SizedBox(height: 10),
+                TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16))))),
+                const SizedBox(height: 24),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 12,
+                  runSpacing: 12,
                   children: iconMapping.entries.map((e) => GestureDetector(
                     onTap: () => setState(() => selectedIcon = e.key),
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: selectedIcon == e.key ? Theme.of(context).colorScheme.primaryContainer : null,
-                        border: Border.all(color: selectedIcon == e.key ? Theme.of(context).colorScheme.primary : Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12),
+                        color: selectedIcon == e.key ? Theme.of(context).colorScheme.primary : Colors.grey.withAlpha(20),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Icon(e.value, size: 24),
+                      child: Icon(e.value, color: selectedIcon == e.key ? Colors.white : Colors.black54),
                     ),
                   )).toList(),
                 ),
@@ -245,12 +407,9 @@ class _RoomListScreenState extends State<RoomListScreen> {
               onPressed: () async {
                 if (controller.text.isNotEmpty) {
                   final data = {'name': controller.text, 'icon': selectedIcon};
-                  if (room == null) {
-                    await widget.pb.collection('rooms').create(body: data);
-                  } else {
-                    await widget.pb.collection('rooms').update(room.id, body: data);
-                  }
-                  if (mounted) Navigator.pop(context);
+                  if (room == null) await widget.pb.collection('rooms').create(body: data);
+                  else await widget.pb.collection('rooms').update(room.id, body: data);
+                  if (context.mounted) Navigator.pop(context);
                   _refreshRooms();
                 }
               },
@@ -267,14 +426,19 @@ class _RoomListScreenState extends State<RoomListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Löschen?'),
-        content: Text('Soll "${room.name}" wirklich gelöscht werden?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-          TextButton(onPressed: () async {
-            await widget.pb.collection('rooms').delete(room.id);
-            if (mounted) Navigator.pop(context);
-            _refreshRooms();
-          }, child: const Text('Löschen', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await widget.pb.collection('rooms').delete(room.id);
+              if (context.mounted) {
+                nav.pop();
+                _refreshRooms();
+              }
+            }, 
+            child: const Text('Löschen', style: TextStyle(color: Colors.red))
+          ),
         ],
       ),
     );

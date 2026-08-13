@@ -26,8 +26,19 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
   }
 
   Future<List<Room>> _fetchRooms() async {
-    final records = await widget.pb.collection('rooms').getFullList(sort: 'name');
-    return records.map((r) => Room.fromRecord(r)).toList();
+    // Alle Räume holen
+    final roomRecords = await widget.pb.collection('rooms').getFullList(sort: 'name');
+    final allRooms = roomRecords.map((r) => Room.fromRecord(r)).toList();
+
+    // Alle Container holen, um zu sehen, welche Räume belegt sind
+    final containerRecords = await widget.pb.collection('containers').getFullList(fields: 'room');
+    final Set<String> roomIdsWithContainers = containerRecords
+        .map((c) => c.getStringValue('room'))
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    // Nur Räume zurückgeben, die mindestens einen Container haben
+    return allRooms.where((room) => roomIdsWithContainers.contains(room.id)).toList();
   }
 
   Future<void> _fetchContainers(String roomId) async {
@@ -37,7 +48,7 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
     );
     setState(() {
       _containers = records.map((r) => InventoryContainer.fromRecord(r)).toList();
-      _selectedContainerId = null; // Zurücksetzen bei Raumwechsel
+      _selectedContainerId = null;
     });
   }
 
@@ -48,18 +59,9 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
         widget.item.id,
         body: {'container': _selectedContainerId},
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gegenstand erfolgreich verschoben!')),
-        );
-        Navigator.pop(context, true);
-      }
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -68,90 +70,134 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
-        title: const Text('Gegenstand verschieben'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Verschieben', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Wohin soll "${widget.item.name}" verschoben werden?',
-              style: Theme.of(context).textTheme.titleMedium,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Wohin soll', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(widget.item.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('verschoben werden?'),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
             
-            // Raum Auswahl
+            const SizedBox(height: 32),
+            
+            _buildSectionTitle('1. Raum wählen'),
             FutureBuilder<List<Room>>(
               future: _roomsFuture,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const LinearProgressIndicator();
                 final rooms = snapshot.data!;
-                return DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Raum auswählen',
-                    border: OutlineInputBorder(),
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true, // Wichtig für breite Texte
+                    decoration: const InputDecoration(border: InputBorder.none),
+                    value: _selectedRoomId,
+                    hint: const Text('Raum auswählen'),
+                    items: rooms.map((r) => DropdownMenuItem(
+                      value: r.id, 
+                      child: Row(
+                        children: [
+                          Icon(r.iconData, size: 20), 
+                          const SizedBox(width: 12), 
+                          Expanded(child: Text(r.name, overflow: TextOverflow.ellipsis))
+                        ]
+                      )
+                    )).toList(),
+                    onChanged: (val) {
+                      setState(() => _selectedRoomId = val);
+                      if (val != null) _fetchContainers(val);
+                    },
                   ),
-                  value: _selectedRoomId,
-                  items: rooms.map((r) => DropdownMenuItem(
-                    value: r.id,
-                    child: Text(r.name),
-                  )).toList(),
-                  onChanged: (val) {
-                    setState(() => _selectedRoomId = val);
-                    if (val != null) _fetchContainers(val);
-                  },
                 );
               },
             ),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             
-            // Container Auswahl
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: 'Container / Box auswählen',
-                border: OutlineInputBorder(),
-                hintText: 'Zuerst Raum wählen',
+            _buildSectionTitle('2. Container wählen'),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: _selectedRoomId == null ? Colors.grey.withAlpha(10) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
               ),
-              value: _selectedContainerId,
-              items: _containers?.map((c) => DropdownMenuItem(
-                value: c.id,
-                child: Text(c.name),
-              )).toList() ?? [],
-              onChanged: _selectedRoomId == null ? null : (val) {
-                setState(() => _selectedContainerId = val);
-              },
+              child: DropdownButtonFormField<String>(
+                isExpanded: true, // Wichtig für breite Texte
+                decoration: const InputDecoration(border: InputBorder.none),
+                value: _selectedContainerId,
+                disabledHint: const Text('Zuerst Raum wählen'),
+                hint: const Text('Box / Regal wählen'),
+                items: _containers?.map((c) => DropdownMenuItem(
+                  value: c.id, 
+                  child: Row(
+                    children: [
+                      Icon(c.iconData, size: 20), 
+                      const SizedBox(width: 12), 
+                      Expanded(child: Text(c.name, overflow: TextOverflow.ellipsis))
+                    ]
+                  )
+                )).toList() ?? [],
+                onChanged: _selectedRoomId == null ? null : (val) => setState(() => _selectedContainerId = val),
+              ),
             ),
             
-            const Spacer(),
+            const SizedBox(height: 48),
             
-            FilledButton.icon(
+            FilledButton(
               onPressed: (_selectedContainerId == null || _isSaving) ? null : _saveMove,
-              icon: _isSaving 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.drive_file_move),
-              label: const Text('Verschieben bestätigen'),
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              ),
+              child: _isSaving 
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Verschieben bestätigen', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: () {
-                // Optionale Logik: In "Kein Container" (lose) verschieben
-                setState(() {
-                  _selectedContainerId = null;
-                  _selectedRoomId = null;
-                  _containers = null;
-                });
+              onPressed: _isSaving ? null : () {
+                setState(() { _selectedContainerId = null; _selectedRoomId = null; _containers = null; });
                 _saveMove();
               },
-              child: const Text('Als "lose" markieren (Kein Container)'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                side: BorderSide(color: Theme.of(context).colorScheme.primary.withAlpha(50)),
+              ),
+              child: const Text('Als "lose" markieren'),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, bottom: 12),
+      child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
     );
   }
 }

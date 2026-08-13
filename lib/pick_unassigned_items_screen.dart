@@ -28,9 +28,8 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
   }
 
   void _refreshItems() {
-    setState(() {
-      _itemsFuture = _fetchUnassignedItems();
-    });
+    _itemsFuture = _fetchUnassignedItems();
+    setState(() {});
   }
 
   Future<List<Item>> _fetchUnassignedItems() async {
@@ -46,22 +45,14 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
 
     setState(() => _isSaving = true);
     try {
-      // Alle ausgewählten Items nacheinander aktualisieren
       for (final id in _selectedItemIds) {
         await widget.pb.collection('items').update(id, body: {
           'container': widget.targetContainer.id,
         });
       }
-
-      if (mounted) {
-        Navigator.pop(context, true); // Erfolg zurückgeben
-      }
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Verschieben: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -70,17 +61,15 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Artikel hinzufügen'),
-            Text(
-              'In: ${widget.targetContainer.name}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-            ),
+            const Text('Artikel einsortieren', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text('In: ${widget.targetContainer.name}', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12)),
           ],
         ),
       ),
@@ -92,56 +81,59 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
           }
           final items = snapshot.data ?? [];
           if (items.isEmpty) {
-            return const Center(child: Text('Keine unzugeordneten Artikel gefunden.'));
+            return const Center(child: Text('Alle Artikel sind bereits einsortiert.'));
           }
 
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Wähle Artikel aus, die du in "${widget.targetContainer.name}" einsortieren möchtest:',
-                  style: Theme.of(context).textTheme.bodyMedium,
+          return ListView.builder(
+            padding: const EdgeInsets.all(24),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final isSelected = _selectedItemIds.contains(item.id);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Theme.of(context).colorScheme.primaryContainer.withAlpha(100) : Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                      width: 2,
+                    ),
+                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))],
+                  ),
+                  child: CheckboxListTile(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    value: isSelected,
+                    title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('${item.quantity} Stück'),
+                    secondary: _buildLeading(item),
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) _selectedItemIds.add(item.id);
+                        else _selectedItemIds.remove(item.id);
+                      });
+                    },
+                  ),
                 ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final isSelected = _selectedItemIds.contains(item.id);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      title: Text(item.name),
-                      subtitle: Text('${item.quantity} Stück'),
-                      secondary: _buildLeading(item),
-                      onChanged: (val) {
-                        setState(() {
-                          if (val == true) {
-                            _selectedItemIds.add(item.id);
-                          } else {
-                            _selectedItemIds.remove(item.id);
-                          }
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
+              );
+            },
           );
         },
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: FilledButton.icon(
-            onPressed: (_selectedItemIds.isEmpty || _isSaving) ? null : _addSelectedItems,
-            icon: _isSaving 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.check),
-            label: Text('${_selectedItemIds.length} Artikel einsortieren'),
-            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+        decoration: const BoxDecoration(color: Colors.transparent),
+        child: FilledButton.icon(
+          onPressed: (_selectedItemIds.isEmpty || _isSaving) ? null : _addSelectedItems,
+          icon: _isSaving 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.check),
+          label: Text('${_selectedItemIds.length} Artikel einsortieren'),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           ),
         ),
       ),
@@ -155,14 +147,14 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
     }
 
     return Container(
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).colorScheme.primary.withAlpha(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         child: imageUrl.isNotEmpty
             ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
             : const Icon(Icons.inventory_2_outlined, size: 20),

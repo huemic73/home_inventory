@@ -61,23 +61,18 @@ class _AddItemScreenState extends State<AddItemScreen> {
         'quantity': quantity,
       };
 
-      // Container ID hinzufügen, falls vorhanden
       if (widget.container != null) {
         body['container'] = widget.container!.id;
       }
 
       List<http.MultipartFile> files = [];
       if (_imageFile != null) {
-        if (kIsWeb) {
-          final bytes = await _imageFile!.readAsBytes();
-          files.add(http.MultipartFile.fromBytes(
-            'photo',
-            bytes,
-            filename: _imageFile!.name,
-          ));
-        } else {
-          files.add(await http.MultipartFile.fromPath('photo', _imageFile!.path));
-        }
+        final bytes = await _imageFile!.readAsBytes();
+        files.add(http.MultipartFile.fromBytes(
+          'photo',
+          bytes,
+          filename: _imageFile!.name,
+        ));
       }
 
       await widget.pb.collection('items').create(
@@ -86,64 +81,64 @@ class _AddItemScreenState extends State<AddItemScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gegenstand erfolgreich hinzugefügt!')),
-        );
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Speichern: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
-        title: const Text('Neuer Gegenstand'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Neuer Artikel', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 800),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(24.0),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (widget.container != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text(
-                        'In Container: ${widget.container!.name}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.secondary,
-                              fontWeight: FontWeight.bold,
-                            ),
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withAlpha(15),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.inventory_2_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 12),
+                          Text('In Container: ${widget.container!.name}', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
+                        ],
                       ),
                     ),
+                  
                   GestureDetector(
                     onTap: () => _showImageSourceActionSheet(context),
                     child: Container(
-                      height: 200,
+                      height: 240,
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[400]!),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(32),
+                        boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
+                        border: Border.all(color: Colors.white, width: 2),
                       ),
                       child: _imageFile != null
                           ? ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(30),
                               child: kIsWeb
                                   ? Image.network(_imageFile!.path, fit: BoxFit.cover)
                                   : Image.file(io.File(_imageFile!.path), fit: BoxFit.cover),
@@ -151,48 +146,35 @@ class _AddItemScreenState extends State<AddItemScreen> {
                           : Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.add_a_photo, size: 50, color: Colors.grey[600]),
-                                const SizedBox(height: 8),
-                                Text('Foto hinzufügen', style: TextStyle(color: Colors.grey[600])),
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), shape: BoxShape.circle),
+                                  child: Icon(Icons.add_a_photo, size: 40, color: Theme.of(context).colorScheme.primary),
+                                ),
+                                const SizedBox(height: 16),
+                                Text('Foto hinzufügen', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
                               ],
                             ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Name des Gegenstands',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.inventory_2),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) return 'Bitte gib einen Namen ein';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _quantityController,
-                    decoration: const InputDecoration(
-                      labelText: 'Anzahl',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.numbers),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || int.tryParse(value) == null) return 'Bitte gib eine gültige Zahl ein';
-                      return null;
-                    },
-                  ),
+                  
                   const SizedBox(height: 32),
-                  ElevatedButton.icon(
+                  
+                  _buildTextField(_nameController, 'Name des Gegenstands', Icons.label_outline),
+                  const SizedBox(height: 16),
+                  _buildTextField(_quantityController, 'Anzahl', Icons.numbers, isNumber: true),
+                  
+                  const SizedBox(height: 48),
+                  
+                  FilledButton(
                     onPressed: _isLoading ? null : _saveItem,
-                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                    icon: _isLoading 
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.save),
-                    label: const Text('Speichern'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    ),
+                    child: _isLoading 
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Artikel speichern', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -203,30 +185,70 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
 
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isNumber = false}) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+      ),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) return 'Pflichtfeld';
+        if (isNumber && int.tryParse(value) == null) return 'Ungültige Zahl';
+        return null;
+      },
+    );
+  }
+
   void _showImageSourceActionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
       builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera),
-              title: const Text('Kamera'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Galerie'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Foto aufnehmen', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildSourceButton(context, Icons.photo_camera, 'Kamera', ImageSource.camera),
+                  _buildSourceButton(context, Icons.photo_library, 'Galerie', ImageSource.gallery),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSourceButton(BuildContext context, IconData icon, String label, ImageSource source) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context);
+        _pickImage(source);
+      },
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), shape: BoxShape.circle),
+            child: Icon(icon, size: 32, color: Theme.of(context).colorScheme.primary),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

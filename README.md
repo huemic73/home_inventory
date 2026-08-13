@@ -1,4 +1,4 @@
-# Home Inventory App
+# Heiminventarisierung
 
 Eine moderne Flutter-Anwendung zur hierarchischen Inventarverwaltung für zuhause, unterstützt durch ein PocketBase-Backend.
 

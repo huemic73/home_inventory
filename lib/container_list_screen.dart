@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'dart:io' as io;
 import 'models.dart';
 import 'item_list_screen.dart';
-import 'scanner_screen.dart'; // Für Zuweisungs-Scan
+import 'scanner_screen.dart';
 
 class ContainerListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -21,6 +21,7 @@ class ContainerListScreen extends StatefulWidget {
 class _ContainerListScreenState extends State<ContainerListScreen> {
   late Future<List<InventoryContainer>> _containersFuture;
   Map<String, int> _containerItemCounts = {};
+  bool _onlyWithItems = false; // Filter-Status
 
   @override
   void initState() {
@@ -40,7 +41,6 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     );
     final containers = records.map((r) => InventoryContainer.fromRecord(r)).toList();
     
-    // Zähle Items pro Container
     final itemRecords = await widget.pb.collection('items').getFullList(fields: 'container');
     final Map<String, int> counts = {};
     for (var record in itemRecords) {
@@ -50,9 +50,11 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       }
     }
     
-    setState(() {
-      _containerItemCounts = counts;
-    });
+    if (mounted) {
+      setState(() {
+        _containerItemCounts = counts;
+      });
+    }
 
     return containers;
   }
@@ -60,48 +62,125 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar.large(
-            title: Text(widget.room.name),
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            actions: [
-              IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshContainers),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.primary.withAlpha(20),
+              Theme.of(context).scaffoldBackgroundColor,
             ],
           ),
-          SliverPadding(
-            padding: const EdgeInsets.all(16.0),
-            sliver: FutureBuilder<List<InventoryContainer>>(
-              future: _containersFuture,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
-                final containers = snapshot.data!;
-                if (containers.isEmpty) {
-                  return const SliverToBoxAdapter(child: Center(child: Text('Keine Container in diesem Raum.')));
-                }
-
-                return SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 450, // Etwas breiter erlaubt
-                    mainAxisExtent: 130,     // Mehr Höhe für die Kacheln gegen den Overflow
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
+        ),
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 120,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              pinned: true,
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                title: Text(
+                  widget.room.name,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
                   ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildContainerCard(context, containers[index]),
-                    childCount: containers.length,
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 10)],
+                    ),
+                    child: Icon(Icons.refresh, color: Theme.of(context).colorScheme.primary, size: 20),
                   ),
-                );
-              },
+                  onPressed: _refreshContainers,
+                ),
+                const SizedBox(width: 16),
+              ],
             ),
-          ),
-        ],
+            SliverToBoxAdapter(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Row(
+                  children: [
+                    FilterChip(
+                      label: const Text('Alle Container'),
+                      selected: !_onlyWithItems,
+                      onSelected: (val) => setState(() => _onlyWithItems = false),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      showCheckmark: false,
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: const Text('Nur mit Artikeln'),
+                      selected: _onlyWithItems,
+                      onSelected: (val) => setState(() => _onlyWithItems = true),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      showCheckmark: false,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              sliver: FutureBuilder<List<InventoryContainer>>(
+                future: _containersFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+                  }
+                  var containers = snapshot.data ?? [];
+
+                  // Filter anwenden
+                  if (_onlyWithItems) {
+                    containers = containers.where((c) => (_containerItemCounts[c.id] ?? 0) > 0).toList();
+                  }
+
+                  if (containers.isEmpty) {
+                    return SliverToBoxAdapter(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 40),
+                          child: Text(_onlyWithItems ? 'Keine vollen Container gefunden.' : 'Noch keine Container hier.'),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 400,
+                      mainAxisExtent: 200, // Platz für Bild + Info
+                      mainAxisSpacing: 20,
+                      crossAxisSpacing: 20,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _buildContainerCard(context, containers[index]),
+                      childCount: containers.length,
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddContainerDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Neuer Container'),
+        child: const Icon(Icons.add, size: 32),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -112,76 +191,100 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       imageUrl = widget.pb.files.getUrl(container.record, container.photo).toString();
     }
 
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(10),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ItemListScreen(
-                pb: widget.pb, 
-                container: container,
-                room: widget.room,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(32),
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ItemListScreen(
+                  pb: widget.pb, 
+                  container: container,
+                  room: widget.room,
+                ),
               ),
-            ),
-          );
-          _refreshContainers(); // Aktualisiert die Artikel-Anzahl beim Zurückkommen
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
+            );
+            _refreshContainers();
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: imageUrl.isNotEmpty
-                      ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(container.iconData, color: Theme.of(context).colorScheme.secondary))
-                      : Icon(container.iconData, color: Theme.of(context).colorScheme.secondary, size: 28),
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                flex: 3,
+                child: Stack(
                   children: [
-                    Text(
-                      container.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                      overflow: TextOverflow.ellipsis,
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                        child: imageUrl.isNotEmpty
+                            ? Image.network(imageUrl, fit: BoxFit.cover)
+                            : Container(
+                                color: Theme.of(context).colorScheme.primary.withAlpha(10),
+                                child: Icon(container.iconData, color: Theme.of(context).colorScheme.primary.withAlpha(100), size: 40),
+                              ),
+                      ),
                     ),
-                    Text(
-                      '$itemCount Gegenstände',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.secondary,
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                        child: PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, size: 20),
+                          onSelected: (val) {
+                            if (val == 'edit') _showAddContainerDialog(context, container: container);
+                            if (val == 'delete') _showDeleteConfirmDialog(context, container);
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+                            const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, size: 20),
-                onSelected: (val) {
-                  if (val == 'edit') _showAddContainerDialog(context, container: container);
-                  if (val == 'delete') _showDeleteConfirmDialog(context, container);
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                  const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-                ],
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        container.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$itemCount Gegenstände',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary.withAlpha(150),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -200,92 +303,93 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text(container == null ? 'Neuer Container' : 'Container bearbeiten'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView( // Ganzer Inhalt scrollbar machen
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () async {
-                      final picker = ImagePicker();
-                      final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
-                      if (file != null) setState(() => pickedFile = file);
-                    },
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+          title: Text(container == null ? 'Neuer Container' : 'Bearbeiten'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    final picker = ImagePicker();
+                    final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
+                    if (file != null) setState(() => pickedFile = file);
+                  },
+                  child: Container(
+                    height: 140,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withAlpha(20),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.grey.withAlpha(40)),
+                    ),
+                    child: pickedFile != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: kIsWeb ? Image.network(pickedFile!.path, fit: BoxFit.cover) : Image.file(io.File(pickedFile!.path), fit: BoxFit.cover),
+                          )
+                        : (container?.photo.isNotEmpty == true && pickedFile == null)
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(24),
+                                child: Image.network(widget.pb.files.getUrl(container!.record, container.photo).toString(), fit: BoxFit.cover),
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo, color: Theme.of(context).colorScheme.primary),
+                                  const SizedBox(height: 8),
+                                  const Text('Foto machen', style: TextStyle(fontSize: 12)),
+                                ],
+                              ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: controller, 
+                  decoration: const InputDecoration(
+                    labelText: 'Name', 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  elevation: 0,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(100),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: ListTile(
+                    dense: true,
+                    title: const Text('QR-Code'),
+                    subtitle: Text(currentLabelId.isEmpty ? 'Automatisch' : 'ID: $currentLabelId', overflow: TextOverflow.ellipsis),
+                    trailing: IconButton(
+                      icon: Icon(currentLabelId.isEmpty ? Icons.qr_code_scanner : Icons.clear),
+                      onPressed: () async {
+                        if (currentLabelId.isEmpty) {
+                          final scannedId = await Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb, isAssigningMode: true)));
+                          if (scannedId != null) setState(() => currentLabelId = scannedId);
+                        } else {
+                          setState(() => currentLabelId = '');
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: iconMapping.entries.map((e) => GestureDetector(
+                    onTap: () => setState(() => selectedIcon = e.key),
                     child: Container(
-                      height: 140, // Etwas mehr Platz für das Foto
-                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
+                        color: selectedIcon == e.key ? Theme.of(context).colorScheme.primary : Colors.grey.withAlpha(20),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[400]!),
                       ),
-                      child: pickedFile != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: kIsWeb ? Image.network(pickedFile!.path, fit: BoxFit.cover) : Image.file(io.File(pickedFile!.path), fit: BoxFit.cover),
-                            )
-                          : (container?.photo.isNotEmpty == true && pickedFile == null)
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(widget.pb.files.getUrl(container!.record, container.photo).toString(), fit: BoxFit.cover),
-                                )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.add_a_photo, color: Colors.grey[600]),
-                                    const Text('Foto hinzufügen', style: TextStyle(fontSize: 12)),
-                                  ],
-                                ),
+                      child: Icon(e.value, size: 20, color: selectedIcon == e.key ? Colors.white : Colors.black54),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder())),
-                  const SizedBox(height: 12),
-                  Card(
-                    elevation: 0,
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                      title: const Text('QR-Code', style: TextStyle(fontSize: 13)),
-                      subtitle: Text(currentLabelId.isEmpty ? 'Automatisch' : 'ID: $currentLabelId', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
-                      trailing: IconButton(
-                        icon: Icon(currentLabelId.isEmpty ? Icons.qr_code_scanner : Icons.clear, size: 18),
-                        onPressed: () async {
-                          if (currentLabelId.isEmpty) {
-                            final scannedId = await Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb, isAssigningMode: true)));
-                            if (scannedId != null) setState(() => currentLabelId = scannedId);
-                          } else {
-                            setState(() => currentLabelId = '');
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Align(alignment: Alignment.centerLeft, child: Text('Icon wählen:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.start,
-                    children: iconMapping.entries.map((e) => GestureDetector(
-                      onTap: () => setState(() => selectedIcon = e.key),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondaryContainer : null,
-                          border: Border.all(color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondary : Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(e.value, size: 22),
-                      ),
-                    )).toList(),
-                  ),
-                ],
-              ),
+                  )).toList(),
+                ),
+              ],
             ),
           ),
           actions: [
@@ -301,12 +405,8 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
 
                   List<http.MultipartFile> files = [];
                   if (pickedFile != null) {
-                    if (kIsWeb) {
-                      final bytes = await pickedFile!.readAsBytes();
-                      files.add(http.MultipartFile.fromBytes('photo', bytes, filename: pickedFile!.name));
-                    } else {
-                      files.add(await http.MultipartFile.fromPath('photo', pickedFile!.path));
-                    }
+                    final bytes = await pickedFile!.readAsBytes();
+                    files.add(http.MultipartFile.fromBytes('photo', bytes, filename: pickedFile!.name));
                   }
 
                   try {
@@ -316,10 +416,10 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                     } else {
                       await widget.pb.collection('containers').update(container.id, body: data, files: files);
                     }
-                    if (mounted) Navigator.pop(context);
+                    if (context.mounted) Navigator.pop(context);
                     _refreshContainers();
                   } catch (e) {
-                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'), backgroundColor: Colors.red));
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
                   }
                 }
               },
@@ -335,14 +435,20 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Container löschen?'),
+        title: const Text('Löschen?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-          TextButton(onPressed: () async {
-            await widget.pb.collection('containers').delete(container.id);
-            if (mounted) Navigator.pop(context);
-            _refreshContainers();
-          }, child: const Text('Löschen', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await widget.pb.collection('containers').delete(container.id);
+              if (context.mounted) {
+                nav.pop();
+                _refreshContainers();
+              }
+            }, 
+            child: const Text('Löschen', style: TextStyle(color: Colors.red))
+          ),
         ],
       ),
     );

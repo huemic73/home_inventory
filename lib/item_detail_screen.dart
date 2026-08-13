@@ -7,8 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:io' as io;
 import 'models.dart';
 import 'move_item_screen.dart';
-
-import 'qr_display_screen.dart'; // Import für QR-Anzeige
+import 'qr_display_screen.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   final Item item;
@@ -57,40 +56,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     setState(() => _isUploading = true);
 
     try {
-      List<http.MultipartFile> files = [];
-      if (kIsWeb) {
-        final bytes = await image.readAsBytes();
-        files.add(http.MultipartFile.fromBytes(
-          'photo',
-          bytes,
-          filename: image.name,
-        ));
-      } else {
-        files.add(await http.MultipartFile.fromPath('photo', image.path));
-      }
+      final bytes = await image.readAsBytes();
+      final file = http.MultipartFile.fromBytes('photo', bytes, filename: image.name);
       
       final updatedRecord = await widget.pb.collection('items').update(
         widget.item.id,
-        files: files,
+        files: [file],
       );
 
       setState(() {
         _currentPhoto = updatedRecord.getStringValue('photo');
         _isUploading = false;
       });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Foto erfolgreich hochgeladen!')),
-        );
-      }
     } catch (e) {
       setState(() => _isUploading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Upload: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
     }
   }
 
@@ -99,133 +79,135 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     final imageUrl = _getImageUrl();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_currentName),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') {
-                _showEditItemDialog();
-              } else if (value == 'delete') {
-                _showDeleteConfirmDialog();
-              } else if (value == 'qr') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => QrDisplayScreen(item: widget.item),
-                  ),
-                );
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-              const PopupMenuItem(value: 'qr', child: Text('QR-Code anzeigen')),
-              const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-            ],
-          ),
-        ],
-      ),
-      body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 800), // Maximale Breite für Desktop
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: AspectRatio(
-                    aspectRatio: 4 / 3,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        imageUrl.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: imageUrl,
-                                placeholder: (context, url) => const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.broken_image, size: 64),
-                                ),
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                color: Colors.grey[100],
-                                child: Icon(
-                                  Icons.inventory_2,
-                                  size: 80,
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                                ),
-                              ),
-                        if (_isUploading)
-                          Container(
-                            color: Colors.black26,
-                            child: const Center(child: CircularProgressIndicator()),
-                          ),
-                      ],
+      backgroundColor: const Color(0xFFF8F9FE),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 300,
+            pinned: true,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Colors.white,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  imageUrl.isNotEmpty
+                      ? CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover)
+                      : Container(
+                          color: Theme.of(context).colorScheme.primary.withAlpha(50),
+                          child: const Icon(Icons.inventory_2_outlined, size: 80, color: Colors.white54),
+                        ),
+                  if (_isUploading)
+                    Container(color: Colors.black26, child: const Center(child: CircularProgressIndicator(color: Colors.white))),
+                  // Gradient Overlay
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.black.withAlpha(100), Colors.transparent, Colors.black.withAlpha(150)],
+                          stops: const [0.0, 0.5, 1.0],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                
-                Card(
-                  elevation: 0,
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                ],
+              ),
+              title: Text(_currentName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.qr_code_2),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => QrDisplayScreen(item: widget.item))),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) {
+                  if (value == 'edit') _showEditItemDialog();
+                  else if (value == 'delete') _showDeleteConfirmDialog();
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+                  const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+                ],
+              ),
+            ],
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(32),
+                      boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
+                    ),
                     child: Column(
                       children: [
                         _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
-                        const Divider(height: 24),
+                        const Divider(height: 40),
                         _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
                       ],
                     ),
                   ),
-                ),
-                
-                const SizedBox(height: 32),
-                
-                Text('Aktionen', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _isUploading ? null : () => _showImageSourceActionSheet(context),
-                        icon: const Icon(Icons.add_a_photo),
-                        label: const Text('Foto'),
+                  const SizedBox(height: 32),
+                  const Text('Aktionen', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionButton(
+                          context, 
+                          'Foto ändern', 
+                          Icons.add_a_photo_outlined, 
+                          () => _showImageSourceActionSheet(context)
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => MoveItemScreen(
-                                pb: widget.pb,
-                                item: widget.item,
-                              ),
-                            ),
-                          );
-                          if (result == true && mounted) {
-                            Navigator.pop(context, true); 
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildActionButton(
+                          context, 
+                          'Verschieben', 
+                          Icons.drive_file_move_outlined, 
+                          () async {
+                            final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => MoveItemScreen(pb: widget.pb, item: widget.item)));
+                            if (result == true && mounted) Navigator.pop(context, true); 
                           }
-                        },
-                        icon: const Icon(Icons.drive_file_move),
-                        label: const Text('Verschieben'),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(BuildContext context, String label, IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary.withAlpha(10),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(30)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 8),
+            Text(label, style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13)),
+          ],
         ),
       ),
     );
@@ -238,40 +220,25 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
         title: const Text('Gegenstand bearbeiten'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
-            ),
-            TextField(
-              controller: quantityController,
-              decoration: const InputDecoration(labelText: 'Anzahl'),
-              keyboardType: TextInputType.number,
-            ),
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16))))),
+            const SizedBox(height: 16),
+            TextField(controller: quantityController, decoration: const InputDecoration(labelText: 'Anzahl', border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16)))), keyboardType: TextInputType.number),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          TextButton(
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          FilledButton(
             onPressed: () async {
               final newName = nameController.text.trim();
               final newQuantity = int.tryParse(quantityController.text) ?? _currentQuantity;
-              
               if (newName.isNotEmpty) {
-                await widget.pb.collection('items').update(widget.item.id, body: {
-                  'name': newName,
-                  'quantity': newQuantity,
-                });
-                setState(() {
-                  _currentName = newName;
-                  _currentQuantity = newQuantity;
-                });
+                await widget.pb.collection('items').update(widget.item.id, body: {'name': newName, 'quantity': newQuantity});
+                setState(() { _currentName = newName; _currentQuantity = newQuantity; });
                 if (mounted) Navigator.pop(context);
               }
             },
@@ -287,22 +254,15 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Gegenstand löschen?'),
-        content: Text('Möchtest du "$_currentName" wirklich unwiderruflich löschen?'),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () async {
+              final nav = Navigator.of(context);
               await widget.pb.collection('items').delete(widget.item.id);
-              if (mounted) {
-                Navigator.pop(context); // Dialog schließen
-                Navigator.pop(context, true); // Zurück zur Liste mit Refresh-Signal
-              }
+              if (mounted) { nav.pop(); nav.pop(true); }
             },
-            child: const Text('Löschen'),
+            child: const Text('Löschen', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -312,13 +272,17 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   Widget _buildInfoRow(BuildContext context, String label, String value, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: 12),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), shape: BoxShape.circle),
+          child: Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        ),
+        const SizedBox(width: 16),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: Theme.of(context).textTheme.labelSmall),
-            Text(value, style: Theme.of(context).textTheme.titleMedium),
+            Text(label, style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontSize: 11, fontWeight: FontWeight.w600)),
+            Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
       ],
@@ -328,27 +292,36 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   void _showImageSourceActionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
       builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera),
-              title: const Text('Kamera'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickAndUploadImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Galerie'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickAndUploadImage(ImageSource.gallery);
-              },
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildSourceOption(context, Icons.photo_camera, 'Kamera', ImageSource.camera),
+              _buildSourceOption(context, Icons.photo_library, 'Galerie', ImageSource.gallery),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSourceOption(BuildContext context, IconData icon, String label, ImageSource source) {
+    return InkWell(
+      onTap: () { Navigator.pop(context); _pickAndUploadImage(source); },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), shape: BoxShape.circle),
+            child: Icon(icon, size: 32, color: Theme.of(context).colorScheme.primary),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

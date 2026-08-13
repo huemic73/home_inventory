@@ -28,7 +28,6 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
     final records = await widget.pb.collection('containers').getFullList(sort: 'name', expand: 'room');
     setState(() {
       _allContainers = records.map((r) => InventoryContainer.fromRecord(r)).toList();
-      // Standardmäßig alle auswählen
       _selectedIds.addAll(_allContainers.map((c) => c.id));
       _isLoading = false;
     });
@@ -101,50 +100,153 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Labels drucken'),
-        actions: [
-          if (_selectedIds.isNotEmpty)
-            IconButton(icon: const Icon(Icons.print), onPressed: _generateAndPrint),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Text('${_selectedIds.length} von ${_allContainers.length} gewählt', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const Spacer(),
-                      TextButton(onPressed: () => setState(() => _selectedIds.clear()), child: const Text('Keine')),
-                      TextButton(onPressed: () => setState(() => _selectedIds.addAll(_allContainers.map((c) => c.id))), child: const Text('Alle')),
-                    ],
+      backgroundColor: const Color(0xFFF8F9FE),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.primary.withAlpha(20),
+              Theme.of(context).scaffoldBackgroundColor,
+            ],
+          ),
+        ),
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 140,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              pinned: true,
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                title: Text(
+                  'Labels drucken',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _allContainers.length,
-                    itemBuilder: (context, index) {
+              ),
+            ),
+            if (!_isLoading)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))],
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${_selectedIds.length} gewählt',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () => setState(() => _selectedIds.clear()), 
+                          child: const Text('Keine')
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.tonal(
+                          onPressed: () => setState(() => _selectedIds.addAll(_allContainers.map((c) => c.id))), 
+                          style: FilledButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Text('Alle wählen')
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (_isLoading)
+              const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+            else if (_allContainers.isEmpty)
+              const SliverFillRemaining(child: Center(child: Text('Keine Container zum Drucken vorhanden.')))
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
                       final container = _allContainers[index];
-                      return CheckboxListTile(
-                        secondary: Icon(container.iconData),
-                        title: Text(container.name),
-                        subtitle: Text('ID: ${container.id}'),
-                        value: _selectedIds.contains(container.id),
-                        onChanged: (val) {
-                          setState(() {
-                            if (val == true) _selectedIds.add(container.id);
-                            else _selectedIds.remove(container.id);
-                          });
-                        },
+                      final isSelected = _selectedIds.contains(container.id);
+                      String imageUrl = '';
+                      if (container.photo.isNotEmpty) {
+                        imageUrl = widget.pb.files.getUrl(container.record, container.photo).toString();
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.white : Colors.white.withAlpha(150),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              if (isSelected) 
+                                BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(20), blurRadius: 10, offset: const Offset(0, 4))
+                              else
+                                BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))
+                            ],
+                          ),
+                          child: CheckboxListTile(
+                            contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                            value: isSelected,
+                            onChanged: (val) {
+                              setState(() {
+                                if (val == true) _selectedIds.add(container.id);
+                                else _selectedIds.remove(container.id);
+                              });
+                            },
+                            title: Text(container.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('ID: ${container.id.substring(0, 8)}...', style: const TextStyle(fontSize: 11)),
+                            secondary: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary.withAlpha(10),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: imageUrl.isNotEmpty
+                                    ? Image.network(imageUrl, fit: BoxFit.cover)
+                                    : Icon(container.iconData, color: Theme.of(context).colorScheme.primary.withAlpha(100)),
+                              ),
+                            ),
+                          ),
+                        ),
                       );
                     },
+                    childCount: _allContainers.length,
                   ),
                 ),
-              ],
-            ),
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          ],
+        ),
+      ),
+      floatingActionButton: _selectedIds.isNotEmpty 
+          ? FloatingActionButton.extended(
+              onPressed: _generateAndPrint,
+              icon: const Icon(Icons.print),
+              label: Text('${_selectedIds.length} Labels drucken'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }
