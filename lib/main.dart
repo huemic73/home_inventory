@@ -113,7 +113,10 @@ class _AuthCheckState extends State<AuthCheck> {
   @override
   void initState() {
     super.initState();
-    _checkAuth();
+    // Sicherstellen, dass die App erst fertig lädt, bevor Auth geprüft wird
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuth();
+    });
   }
 
   Future<void> _checkAuth() async {
