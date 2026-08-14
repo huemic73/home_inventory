@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'models.dart';
 import 'item_detail_screen.dart';
+import 'ui_components.dart'; // Import hinzugefügt
 
 class GlobalSearchScreen extends StatefulWidget {
   final PocketBase pb;
@@ -46,30 +47,39 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: TextField(
-          controller: _searchController,
-          autofocus: true,
-          decoration: const InputDecoration(
+    return InventoryPageLayout(
+      title: 'Artikelsuche',
+      subtitle: 'Gesamtes Inventar durchsuchen',
+      filterChips: [
+        Expanded(
+          child: SearchBar(
+            controller: _searchController,
             hintText: 'Was suchst du?',
-            border: InputBorder.none,
+            leading: const Icon(Icons.search, size: 20),
+            elevation: WidgetStateProperty.all(0),
+            backgroundColor: WidgetStateProperty.all(Theme.of(context).cardTheme.color),
+            shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+            onChanged: _performSearch,
           ),
-          onChanged: _performSearch,
         ),
-      ),
-      body: _isLoading 
-          ? const Center(child: CircularProgressIndicator())
-          : _results.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  padding: const EdgeInsets.all(24),
-                  itemCount: _results.length,
-                  itemBuilder: (context, index) => _buildResultCard(_results[index]),
-                ),
+      ],
+      sectionTitle: _results.isNotEmpty ? 'Suchergebnisse' : null,
+      slivers: [
+        if (_isLoading)
+          const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+        else if (_results.isEmpty)
+          SliverFillRemaining(child: _buildEmptyState())
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _buildResultCard(_results[index]),
+                childCount: _results.length,
+              ),
+            ),
+          ),
+      ],
     );
   }
 

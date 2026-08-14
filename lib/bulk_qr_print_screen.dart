@@ -104,7 +104,9 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
       );
       await Printing.layoutPdf(onLayout: (format) async => doc.save(), name: 'Inventur_Struktur.pdf');
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Druckfehler: $e'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Druckfehler: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 

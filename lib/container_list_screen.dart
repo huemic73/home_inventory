@@ -62,14 +62,18 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     final Map<String, int> locCounts = {};
     for (var r in allRoomContRecords) {
       final locId = r.getStringValue('storage_location');
-      if (locId.isNotEmpty) locCounts[locId] = (locCounts[locId] ?? 0) + 1;
+      if (locId.isNotEmpty) {
+        locCounts[locId] = (locCounts[locId] ?? 0) + 1;
+      }
     }
 
     final itemRecords = await widget.pb.collection('items').getFullList(fields: 'container');
     final Map<String, int> counts = {};
     for (var record in itemRecords) {
       final containerId = record.getStringValue('container');
-      if (containerId.isNotEmpty) counts[containerId] = (counts[containerId] ?? 0) + 1;
+      if (containerId.isNotEmpty) {
+        counts[containerId] = (counts[containerId] ?? 0) + 1;
+      }
     }
     
     if (mounted) {
@@ -115,38 +119,49 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         ),
       ],
       floatingActionButton: _buildFab(context),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _dataFuture,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
-          var locations = snapshot.data!['locations'] as List<StorageLocation>;
-          var containers = snapshot.data!['containers'] as List<InventoryContainer>;
+      slivers: [
+        SliverToBoxAdapter(
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: _dataFuture,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.only(top: 100),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              var locations = snapshot.data!['locations'] as List<StorageLocation>;
+              var containers = snapshot.data!['containers'] as List<InventoryContainer>;
 
-          if (_onlyWithItems) {
-            containers = containers.where((c) => (_containerItemCounts[c.id] ?? 0) > 0).toList();
-          }
+              if (_onlyWithItems) {
+                containers = containers.where((c) => (_containerItemCounts[c.id] ?? 0) > 0).toList();
+              }
 
-          return SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                if (locations.isNotEmpty && !_onlyWithItems) ...[
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text('Ablageorte', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-                  _buildLocationsGrid(locations),
-                  const SizedBox(height: 24),
-                ],
-                if (containers.isNotEmpty || widget.storageLocation != null) ...[
-                  Text(widget.storageLocation != null ? 'Container hier' : 'Direkt im Raum', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 16),
-                  _buildContainersGrid(containers),
-                ],
-                if (locations.isEmpty && containers.isEmpty) 
-                  const Center(child: Padding(padding: EdgeInsets.only(top: 40), child: Text('Hier ist noch alles leer.'))),
-              ]),
-            ),
-          );
-        },
-      ),
+              return Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (locations.isNotEmpty && !_onlyWithItems) ...[
+                      const Text('Ablageorte', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 16),
+                      _buildLocationsGrid(locations),
+                      const SizedBox(height: 32),
+                    ],
+                    if (containers.isNotEmpty || widget.storageLocation != null) ...[
+                      Text(widget.storageLocation != null ? 'Container hier' : 'Direkt im Raum', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 16),
+                      _buildContainersGrid(containers),
+                    ],
+                    if (locations.isEmpty && containers.isEmpty) 
+                      const Center(child: Text('Hier ist noch alles leer.')),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -165,7 +180,11 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: BoxDecoration(color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(32), boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 4))]),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color, 
+        borderRadius: BorderRadius.circular(32), 
+        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 4))]
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(32),
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, room: widget.room, storageLocation: loc))),
@@ -178,7 +197,9 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                 decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(15), borderRadius: BorderRadius.circular(20)),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: imageUrl.isNotEmpty ? Image.network(imageUrl, fit: BoxFit.cover) : Icon(loc.iconData, color: Theme.of(context).colorScheme.primary, size: 32),
+                  child: imageUrl.isNotEmpty 
+                    ? Image.network(imageUrl, fit: BoxFit.cover) 
+                    : Icon(loc.iconData, color: Theme.of(context).colorScheme.primary, size: 32),
                 ),
               ),
               const SizedBox(width: 16),
@@ -199,8 +220,12 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, size: 18),
                 onSelected: (val) {
-                  if (val == 'edit') _showAddLocationDialog(context, location: loc);
-                  if (val == 'delete') _showDeleteLocationConfirmDialog(context, loc);
+                  if (val == 'edit') {
+                    _showAddLocationDialog(context, location: loc);
+                  }
+                  if (val == 'delete') {
+                    _showDeleteLocationConfirmDialog(context, loc);
+                  }
                 },
                 itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), const PopupMenuItem(value: 'delete', child: Text('Löschen'))],
               ),
@@ -248,7 +273,9 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                   decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(15), borderRadius: BorderRadius.circular(20)),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: imageUrl.isNotEmpty ? Image.network(imageUrl, fit: BoxFit.cover) : Icon(container.iconData, color: Theme.of(context).colorScheme.primary, size: 32),
+                    child: imageUrl.isNotEmpty 
+                      ? Image.network(imageUrl, fit: BoxFit.cover) 
+                      : Icon(container.iconData, color: Theme.of(context).colorScheme.primary, size: 32),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -265,11 +292,17 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   onSelected: (val) async {
-                    if (val == 'edit') _showAddContainerDialog(context, container: container);
-                    if (val == 'delete') _showDeleteConfirmDialog(context, container);
+                    if (val == 'edit') {
+                      _showAddContainerDialog(context, container: container);
+                    }
+                    if (val == 'delete') {
+                      _showDeleteConfirmDialog(context, container);
+                    }
                     if (val == 'move') {
                       final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, container: container)));
-                      if (result == true) _refreshData();
+                      if (result == true) {
+                        _refreshData();
+                      }
                     }
                   },
                   itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), const PopupMenuItem(value: 'move', child: Text('Verschieben')), const PopupMenuItem(value: 'delete', child: Text('Löschen'))],
@@ -301,7 +334,9 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       builder: (context) => InventoryForm(
         title: location == null ? 'Neuer Ablageort' : 'Ort bearbeiten',
         initialName: location?.name,
-        initialPhotoUrl: location != null && location.photo.isNotEmpty ? widget.pb.files.getUrl(location.record, location.photo).toString() : null,
+        initialPhotoUrl: location != null && location.photo.isNotEmpty 
+            ? widget.pb.files.getUrl(location.record, location.photo).toString() 
+            : null,
         initialIcon: location?.iconName ?? 'shelves',
         showIcons: true,
         availableIcons: const ['shelves', 'door_sliding', 'home_repair_service'],
@@ -310,15 +345,26 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
           final data = {'name': name, 'icon': icon};
           List<http.MultipartFile> files = [];
           if (imageFile != null) {
-            if (kIsWeb) files.add(http.MultipartFile.fromBytes('photo', await imageFile.readAsBytes(), filename: imageFile.name));
-            else files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            if (kIsWeb) {
+              final bytes = await imageFile.readAsBytes();
+              files.add(http.MultipartFile.fromBytes('photo', bytes, filename: imageFile.name));
+            } else {
+              files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            }
           }
+
           try {
-            if (location == null) { data['room'] = widget.room.id; await widget.pb.collection('storage_locations').create(body: data, files: files); }
-            else await widget.pb.collection('storage_locations').update(location.id, body: data, files: files);
+            if (location == null) {
+              data['room'] = widget.room.id;
+              await widget.pb.collection('storage_locations').create(body: data, files: files);
+            } else {
+              await widget.pb.collection('storage_locations').update(location.id, body: data, files: files);
+            }
             if (context.mounted) Navigator.pop(context);
             _refreshData();
-          } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
+          } catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          }
         },
       ),
     );
@@ -330,7 +376,9 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       builder: (context) => InventoryForm(
         title: container == null ? 'Neuer Container' : 'Bearbeiten',
         initialName: container?.name,
-        initialPhotoUrl: container != null && container.photo.isNotEmpty ? widget.pb.files.getUrl(container.record, container.photo).toString() : null,
+        initialPhotoUrl: container != null && container.photo.isNotEmpty 
+            ? widget.pb.files.getUrl(container.record, container.photo).toString() 
+            : null,
         initialIcon: container?.iconName ?? 'inventory_2',
         initialLabelId: container?.labelId,
         showIcons: true,
@@ -338,29 +386,84 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         availableIcons: iconMapping.keys.toList(),
         pb: widget.pb,
         onSave: (name, quantity, imageFile, icon, labelId) async {
-          final Map<String, dynamic> data = {'name': name, 'icon': icon, 'labelId': labelId.isEmpty ? null : labelId};
+          final Map<String, dynamic> data = {
+            'name': name, 
+            'icon': icon,
+            'labelId': labelId.isEmpty ? null : labelId,
+          };
           if (widget.storageLocation != null) data['storage_location'] = widget.storageLocation!.id;
+
           List<http.MultipartFile> files = [];
           if (imageFile != null) {
-            if (kIsWeb) files.add(http.MultipartFile.fromBytes('photo', await imageFile.readAsBytes(), filename: imageFile.name));
-            else files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            if (kIsWeb) {
+              final bytes = await imageFile.readAsBytes();
+              files.add(http.MultipartFile.fromBytes('photo', bytes, filename: imageFile.name));
+            } else {
+              files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            }
           }
+
           try {
-            if (container == null) { data['room'] = widget.room.id; await widget.pb.collection('containers').create(body: data, files: files); }
-            else await widget.pb.collection('containers').update(container.id, body: data, files: files);
+            if (container == null) {
+              data['room'] = widget.room.id;
+              await widget.pb.collection('containers').create(body: data, files: files);
+            } else {
+              await widget.pb.collection('containers').update(container.id, body: data, files: files);
+            }
             if (context.mounted) Navigator.pop(context);
             _refreshData();
-          } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
+          } catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          }
         },
       ),
     );
   }
 
   void _showDeleteLocationConfirmDialog(BuildContext context, StorageLocation loc) {
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Ort löschen?'), content: Text('Soll "${loc.name}" wirklich gelöscht werden?'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')), TextButton(onPressed: () async { final nav = Navigator.of(context); await widget.pb.collection('storage_locations').delete(loc.id); if (context.mounted) { nav.pop(); _refreshData(); } }, child: const Text('Löschen', style: TextStyle(color: Colors.red)))]));
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ort löschen?'),
+        content: Text('Soll "${loc.name}" wirklich gelöscht werden?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await widget.pb.collection('storage_locations').delete(loc.id);
+              if (context.mounted) {
+                nav.pop();
+                _refreshData();
+              }
+            }, 
+            child: const Text('Löschen', style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
+    );
   }
 
   void _showDeleteConfirmDialog(BuildContext context, InventoryContainer container) {
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Löschen?'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')), TextButton(onPressed: () async { final nav = Navigator.of(context); await widget.pb.collection('containers').delete(container.id); if (context.mounted) { nav.pop(); _refreshData(); } }, child: const Text('Löschen', style: TextStyle(color: Colors.red)))]));
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Löschen?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await widget.pb.collection('containers').delete(container.id);
+              if (context.mounted) {
+                nav.pop();
+                _refreshData();
+              }
+            }, 
+            child: const Text('Löschen', style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
+    );
   }
 }

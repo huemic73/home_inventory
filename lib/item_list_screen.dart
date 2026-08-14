@@ -97,7 +97,8 @@ class _ItemListScreenState extends State<ItemListScreen> {
         const SizedBox(width: 16),
       ],
       filterChips: [
-        Expanded(
+        SizedBox(
+          width: 400,
           child: SearchBar(
             controller: _searchController,
             hintText: 'In dieser Box suchen...',
@@ -114,27 +115,39 @@ class _ItemListScreenState extends State<ItemListScreen> {
       ],
       sectionTitle: 'Inhalt der Box',
       floatingActionButton: _buildFab(context),
-      body: FutureBuilder<List<Item>>(
-        future: _itemsFuture,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
-          final items = snapshot.data!;
-          if (items.isEmpty) return const SliverFillRemaining(child: Center(child: Text('Diese Box ist momentan leer.')));
+      slivers: [
+        SliverToBoxAdapter(
+          child: FutureBuilder<List<Item>>(
+            future: _itemsFuture,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.only(top: 100),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final items = snapshot.data!;
+              if (items.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.only(top: 100),
+                  child: Center(child: Text('Diese Box ist momentan leer.')),
+                );
+              }
 
-          return SliverPadding(
-            padding: const EdgeInsets.all(24),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => Padding(
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
+                itemCount: items.length,
+                itemBuilder: (context, index) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _buildItemCard(context, items[index]),
                 ),
-                childCount: items.length,
-              ),
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -180,7 +193,9 @@ class _ItemListScreenState extends State<ItemListScreen> {
             icon: Icons.playlist_add,
             onPressed: () async {
               final res = await Navigator.push(context, MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetContainer: widget.container!)));
-              if (res == true) _refreshItems();
+              if (res == true) {
+                _refreshItems();
+              }
             },
             backgroundColor: isDark ? const Color(0xFF2D2F36) : Colors.white,
             foregroundColor: Theme.of(context).colorScheme.primary,
@@ -201,17 +216,28 @@ class _ItemListScreenState extends State<ItemListScreen> {
         pb: widget.pb,
         onSave: (name, quantity, imageFile, icon, labelId) async {
           final Map<String, dynamic> body = {'name': name, 'quantity': quantity};
-          if (widget.container != null) body['container'] = widget.container!.id;
+          if (widget.container != null) {
+            body['container'] = widget.container!.id;
+          }
           List<http.MultipartFile> files = [];
           if (imageFile != null) {
-            if (kIsWeb) files.add(http.MultipartFile.fromBytes('photo', await imageFile.readAsBytes(), filename: imageFile.name));
-            else files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            if (kIsWeb) {
+              files.add(http.MultipartFile.fromBytes('photo', await imageFile.readAsBytes(), filename: imageFile.name));
+            } else {
+              files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            }
           }
           try {
             await widget.pb.collection('items').create(body: body, files: files);
-            if (context.mounted) Navigator.pop(context);
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
             _refreshItems();
-          } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+            }
+          }
         },
       ),
     );

@@ -38,7 +38,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   String _getImageUrl() {
-    if (_currentPhoto.isEmpty || widget.item.record == null) return '';
+    if (_currentPhoto.isEmpty || widget.item.record == null) {
+      return '';
+    }
     return widget.pb.files.getUrl(widget.item.record!, _currentPhoto).toString();
   }
 
@@ -51,7 +53,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       imageQuality: 80,
     );
 
-    if (image == null || widget.item.record == null) return;
+    if (image == null || widget.item.record == null) {
+      return;
+    }
 
     setState(() => _isUploading = true);
 
@@ -70,7 +74,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       });
     } catch (e) {
       setState(() => _isUploading = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      }
     }
   }
 
@@ -283,9 +289,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               _currentPhoto = updatedRecord.getStringValue('photo');
             });
             
-            if (context.mounted) Navigator.pop(context);
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
           } catch (e) {
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+            }
           }
         },
       ),
@@ -303,7 +313,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             onPressed: () async {
               final nav = Navigator.of(context);
               await widget.pb.collection('items').delete(widget.item.id);
-              if (mounted) { nav.pop(); nav.pop(true); }
+              if (mounted) { 
+                nav.pop(); 
+                nav.pop(true); 
+              }
             },
             child: const Text('Löschen', style: TextStyle(color: Colors.red)),
           ),

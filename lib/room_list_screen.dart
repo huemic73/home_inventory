@@ -72,71 +72,48 @@ class _RoomListScreenState extends State<RoomListScreen> {
       subtitle: 'Alle Räume im Überblick',
       drawer: _buildDrawer(context),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.qr_code_scanner),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb))),
-        ),
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb))),
-        ),
+        IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
+        IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb)))),
         const SizedBox(width: 16),
       ],
       filterChips: [
-        FilterChip(
-          label: const Text('Alle Räume'),
-          selected: !_onlyWithContainers,
-          onSelected: (val) => setState(() => _onlyWithContainers = false),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          showCheckmark: false,
-        ),
+        FilterChip(label: const Text('Alle Räume'), selected: !_onlyWithContainers, onSelected: (val) => setState(() => _onlyWithContainers = false), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), showCheckmark: false),
         const SizedBox(width: 8),
-        FilterChip(
-          label: const Text('Nur belegte'),
-          selected: _onlyWithContainers,
-          onSelected: (val) => setState(() => _onlyWithContainers = true),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          showCheckmark: false,
-        ),
+        FilterChip(label: const Text('Nur belegte'), selected: _onlyWithContainers, onSelected: (val) => setState(() => _onlyWithContainers = true), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), showCheckmark: false),
       ],
       sectionTitle: 'Deine Räume',
-      floatingActionButton: StandardFab(
-        label: 'Raum',
-        onPressed: () => _showAddRoomDialog(context),
-      ),
-      body: FutureBuilder<List<Room>>(
-        future: _roomsFuture,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
-          
-          var rooms = snapshot.data!;
-          if (_onlyWithContainers) {
-            rooms = rooms.where((r) => (_roomContainerCounts[r.id] ?? 0) > 0).toList();
-          }
+      floatingActionButton: StandardFab(label: 'Raum', onPressed: () => _showAddRoomDialog(context)),
+      slivers: [
+        FutureBuilder<List<Room>>(
+          future: _roomsFuture,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
+            var rooms = snapshot.data!;
+            if (_onlyWithContainers) {
+              rooms = rooms.where((r) => (_roomContainerCounts[r.id] ?? 0) > 0).toList();
+            }
 
-          return SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _buildSpecialTile(context),
-                const SizedBox(height: 24),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 400,
-                    mainAxisExtent: 180,
-                    mainAxisSpacing: 20,
-                    crossAxisSpacing: 20,
-                  ),
-                  itemCount: rooms.length,
-                  itemBuilder: (context, index) => _buildRoomCard(context, rooms[index]),
-                ),
-              ]),
-            ),
-          );
-        },
-      ),
+            return SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _buildSpecialTile(context),
+                  const SizedBox(height: 24),
+                  if (rooms.isEmpty)
+                    const Center(child: Text('Keine Räume gefunden.'))
+                  else
+                    GridView.builder(
+                      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 400, mainAxisExtent: 180, mainAxisSpacing: 20, crossAxisSpacing: 20),
+                      itemCount: rooms.length,
+                      itemBuilder: (context, index) => _buildRoomCard(context, rooms[index]),
+                    ),
+                ]),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -148,14 +125,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
       children: [
         DrawerHeader(
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black12, width: 1))),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text('Heiminventar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-              Text('Modern & Strukturiert', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
-            ],
-          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Text('Heiminventar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)), Text('Modern & Strukturiert', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54))]),
         ),
         const SizedBox(height: 12),
         NavigationDrawerDestination(icon: Icon(Icons.dashboard_outlined, color: isDark ? Colors.white70 : null), label: Text('Übersicht', style: TextStyle(color: isDark ? Colors.white : null))),
@@ -178,20 +148,13 @@ class _RoomListScreenState extends State<RoomListScreen> {
   Widget _buildSpecialTile(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: BoxDecoration(
-        color: _unassignedItemCount > 0 ? Theme.of(context).colorScheme.primary : (isDark ? Colors.white10 : Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(150)),
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [if (_unassignedItemCount > 0) BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(60), blurRadius: 20, offset: const Offset(0, 10))],
-      ),
+      decoration: BoxDecoration(color: _unassignedItemCount > 0 ? Theme.of(context).colorScheme.primary : (isDark ? Colors.white10 : Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(150)), borderRadius: BorderRadius.circular(32), boxShadow: [if (_unassignedItemCount > 0) BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(60), blurRadius: 20, offset: const Offset(0, 10))]),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         title: Text('Ohne Zuordnung', style: TextStyle(color: _unassignedItemCount > 0 || isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
         subtitle: Text(_unassignedItemCount > 0 ? '$_unassignedItemCount Artikel warten auf einen Platz' : 'Alles perfekt einsortiert!', style: TextStyle(color: _unassignedItemCount > 0 || isDark ? Colors.white70 : Colors.black54)),
         trailing: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: _unassignedItemCount > 0 || isDark ? Colors.white24 : Colors.black12, shape: BoxShape.circle), child: Icon(_unassignedItemCount > 0 ? Icons.arrow_forward : Icons.check, color: _unassignedItemCount > 0 || isDark ? Colors.white : Colors.black54)),
-        onTap: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, onlyUnassigned: true)));
-          _refreshRooms();
-        },
+        onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, onlyUnassigned: true))); _refreshRooms(); },
       ),
     );
   }
@@ -209,10 +172,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(32),
-          onTap: () async {
-            await Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, room: room)));
-            _refreshRooms();
-          },
+          onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, room: room))); _refreshRooms(); },
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -250,18 +210,11 @@ class _RoomListScreenState extends State<RoomListScreen> {
         onSave: (name, quantity, imageFile, icon, labelId) async {
           final data = {'name': name, 'icon': icon};
           try {
-            if (room == null) {
-              await widget.pb.collection('rooms').create(body: data);
-            } else {
-              await widget.pb.collection('rooms').update(room.id, body: data);
-            }
+            if (room == null) { await widget.pb.collection('rooms').create(body: data); }
+            else { await widget.pb.collection('rooms').update(room.id, body: data); }
             if (context.mounted) Navigator.pop(context);
             _refreshRooms();
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
-            }
-          }
+          } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
         },
       ),
     );
@@ -278,10 +231,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
             onPressed: () async {
               final nav = Navigator.of(context);
               await widget.pb.collection('rooms').delete(room.id);
-              if (context.mounted) {
-                nav.pop();
-                _refreshRooms();
-              }
+              if (context.mounted) { nav.pop(); _refreshRooms(); }
             },
             child: const Text('Löschen', style: TextStyle(color: Colors.red)),
           ),
