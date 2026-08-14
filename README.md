@@ -1,72 +1,73 @@
-# Heiminventarisierung
+# Heiminventarisierung (Home Inventory)
 
-Eine moderne Flutter-Anwendung zur hierarchischen Inventarverwaltung für zuhause, unterstützt durch ein PocketBase-Backend.
+Eine moderne, hierarchische Flutter-Anwendung zur Inventarverwaltung für zuhause. Organisiere deine Werkzeuge, Vorräte oder Sammlungen mit Fotos, QR-Codes und einer klaren Struktur.
 
-## Features
+![Design](https://img.shields.io/badge/Design-Modern%20Blue-blue)
+![Flutter](https://img.shields.io/badge/Framework-Flutter%203-02569B?logo=flutter)
+![PocketBase](https://img.shields.io/badge/Backend-PocketBase-ADDEFF?logo=sqlite)
 
-- **Hierarchische Struktur:** Organisiere Gegenstände in Räumen und Containern (Boxen, Regale, etc.).
-- **Foto-Upload:** Erfasse Gegenstände visuell mit der Kamera oder Galerie (funktioniert auch im Web-Browser).
-- **Globale Suche:** Finde Artikel schnell über alle Räume und Container hinweg.
-- **Verschieben-Funktion:** Ordne Gegenstände jederzeit neu zu oder verschiebe sie zwischen Containern.
-- **CRUD-Operationen:** Räume, Container und Artikel können erstellt, bearbeitet und gelöscht werden.
+## 🚀 Features
 
-## Tech-Stack
+- **Vierstufige Hierarchie:** Organisiere alles nach **Raum** > **Ablageort** (Regal/Schrank) > **Container** (Box) > **Artikel**.
+- **Intelligentes QR-System:** 
+  - Scanne Boxen, um sofort den Inhalt zu sehen ("digitales Fenster").
+  - **Label-Recycling:** Weise bereits gedruckten Etiketten erst beim Bekleben neue Container zu.
+- **Visuelle Erfassung:** Unterstützung für Fotos auf jeder Ebene (Ablageort, Container, Artikel) via Kamera oder Galerie.
+- **Globale Suche:** Blitzschnelle Suche über das gesamte Inventar mit Pfadanzeige (z.B. *Keller > Regal A > Blaue Box*).
+- **Inventurhilfe:** Generiere strukturierte PDF-Listen aller Container, gruppiert nach Räumen, inklusive QR-Codes zum Abhaken.
+- **Benutzerverwaltung:** Sicherer Login-Bereich mit Profilverwaltung und Passwort-Änderung.
+- **Modernes Design:** "Modern Blue" Theme basierend auf Material 3 mit der Schriftart "Outfit".
 
-- **Frontend:** [Flutter](https://flutter.dev) (Material 3)
-- **Backend:** [PocketBase](https://pocketbase.io)
-- **Pakete:** `pocketbase`, `image_picker`, `cached_network_image`, `http`.
+## 🛠 Tech-Stack
+
+- **Frontend:** Flutter (Material 3)
+- **Backend:** [PocketBase](https://pocketbase.io) (Self-hosted Go/SQLite)
+- **Schlüssel-Pakete:** 
+  - `mobile_scanner` (QR-Erkennung)
+  - `printing` & `pdf` (Label-Generierung)
+  - `image_picker` (Foto-Management)
+  - `google_fonts` (Outfit Font)
 
 ---
 
-## Setup & Installation
+## ⚙️ Setup & Installation
 
 ### 1. PocketBase Backend vorbereiten
 
 1. Lade PocketBase von [pocketbase.io](https://pocketbase.io) herunter.
-2. Starte den Server in einem Terminal:
+2. Starte den Server:
    ```bash
    ./pocketbase serve --http="0.0.0.0:8090"
    ```
-3. Erstelle einen Superuser unter `http://127.0.0.1:8090/_/`.
-4. Erstelle folgende Collections:
+3. Erstelle einen Admin-Account unter `http://127.0.0.1:8090/_/`.
+4. Erstelle folgende Collections mit den entsprechenden Feldern:
 
-#### Collection: `rooms`
-- Fields: `name` (Text, required)
-- API Rules: Alle leer lassen (öffentlich).
+| Collection | Felder | API Rules (Auth) |
+| :--- | :--- | :--- |
+| `rooms` | `name` (Text), `icon` (Text) | `@request.auth.id != ""` |
+| `storage_locations` | `name` (Text), `room` (Rel), `icon` (Text), `photo` (File) | `@request.auth.id != ""` |
+| `containers` | `name` (Text), `room` (Rel), `storage_location` (Rel, opt), `icon` (Text), `labelId` (Text, unique), `photo` (File) | `@request.auth.id != ""` |
+| `items` | `name` (Text), `quantity` (Number), `photo` (File), `container` (Rel, opt) | `@request.auth.id != ""` |
 
-#### Collection: `containers`
-- Fields:
-  - `name` (Text, required)
-  - `room` (Relation, Max Select: 1, Collection: `rooms`, Required: Ja)
-- API Rules: Alle leer lassen.
+### 2. Flutter App konfigurieren
 
-#### Collection: `items`
-- Fields:
-  - `name` (Text, required)
-  - `quantity` (Number, Non-negative: Ja)
-  - `photo` (File, Max Select: 1, Mime types: images)
-  - `container` (Relation, Max Select: 1, Collection: `containers`, Required: Nein)
-- API Rules: Alle leer lassen.
-
-### 2. Flutter App starten
-
-1. Klone das Repository oder öffne den Projektordner in Android Studio.
-2. Stelle sicher, dass die Abhängigkeiten installiert sind:
-   ```bash
-   flutter pub get
-   ```
-3. **Netzwerk-Konfiguration:**
-   - Die App nutzt automatisch `10.0.2.2` für den Android-Emulator und `127.0.0.1` für Web/Desktop.
-   - Falls du ein echtes Android-Gerät nutzt, passe die `baseUrl` in `lib/main.dart` an deine lokale PC-IP an.
-4. Starte die App:
-   - Für Web: `flutter run -d chrome`
-   - Für Android: Wähle deinen Emulator/Handy und klicke auf "Run".
+1. Klone das Repository.
+2. Installiere die Abhängigkeiten: `flutter pub get`.
+3. **Netzwerk:** Für die Nutzung auf echten Android-Geräten (z.B. Pixel 9) muss in `lib/main.dart` die Variable `pcIp` auf die aktuelle lokale IPv4-Adresse deines PCs gesetzt werden (via `ipconfig`).
+4. **Build:**
+   - Web: `flutter run -d chrome`
+   - Android: `flutter run` (erfordert minSdk 21)
 
 ---
 
-## Benutzung
+## 📖 Bedienung
 
-1. **Räume anlegen:** Erstelle zuerst Räume (z.B. Keller, Garage).
-2. **Container hinzufügen:** Navigiere in einen Raum und erstelle dort Container (z.B. Regal A, Box 1).
-3. **Gegenstände erfassen:** In den Containern kannst du nun Artikel mit Foto und Menge hinzufügen.
-4. **Aufräumen:** Nutze die Liste "Ohne Zuordnung" auf dem Startbildschirm, um Artikel zu finden, die noch in keiner Box liegen.
+1. **Struktur aufbauen:** Lege Räume an, füge bei Bedarf Ablageorte (Regale) hinzu und erstelle darin Container.
+2. **QR-Labels:** Nutze die Funktion "Etiketten drucken" im Seitenmenü, um eine Inventurliste oder Aufkleber zu generieren.
+3. **Zuweisung:** Klebe einen QR-Code auf eine neue Box, wähle in der App "Zuweisen" und scanne den Code – die Box ist nun digital verknüpft.
+4. **Suchen & Finden:** Nutze die Lupe auf der Startseite, um Gegenstände sofort zu lokalisieren.
+
+---
+
+## 🐳 Docker Deployment (Geplant)
+Die Anwendung ist darauf ausgelegt, als Docker-Container zu laufen. Die Flutter-Web-App kann direkt im `pb_public` Ordner von PocketBase mitserviert werden, um Datenbank und Frontend in einem einzigen Container zu vereinen.
