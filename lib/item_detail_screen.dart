@@ -78,6 +78,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   Widget build(BuildContext context) {
     final imageUrl = _getImageUrl();
 
+    // Pfad berechnen
+    String path = 'Ohne Zuordnung';
+    final containerRecord = widget.item.record?.expand['container']?.first;
+    if (containerRecord != null) {
+      final roomName = containerRecord.expand['room']?.first.getStringValue('name') ?? 'Unbekannter Raum';
+      final containerName = containerRecord.getStringValue('name');
+      final locName = containerRecord.expand['storage_location']?.first.getStringValue('name');
+      
+      if (locName != null) {
+        path = '$roomName > $locName > $containerName';
+      } else {
+        path = '$roomName > $containerName';
+      }
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FE),
       body: CustomScrollView(
@@ -150,8 +165,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     child: Column(
                       children: [
                         _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
-                        const Divider(height: 40),
+                        const Divider(height: 32),
                         _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
+                        const Divider(height: 32),
+                        _buildInfoRow(context, 'Standort', path, Icons.location_on_outlined),
                       ],
                     ),
                   ),

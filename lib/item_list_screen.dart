@@ -56,6 +56,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
     final records = await widget.pb.collection('items').getFullList(
       filter: filters.isEmpty ? null : filters.join(' && '),
       sort: '-created',
+      expand: 'container,container.room,container.storage_location', // Alles expandieren
     );
     return records.map((record) => Item.fromRecord(record)).toList();
   }
