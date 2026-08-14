@@ -15,8 +15,13 @@ class MoveItemScreen extends StatefulWidget {
 class _MoveItemScreenState extends State<MoveItemScreen> {
   late Future<List<Room>> _roomsFuture;
   String? _selectedRoomId;
+  
+  List<StorageLocation>? _locations;
+  String? _selectedLocationId;
+  
   List<InventoryContainer>? _containers;
   String? _selectedContainerId;
+  
   bool _isSaving = false;
 
   @override
@@ -26,24 +31,43 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
   }
 
   Future<List<Room>> _fetchRooms() async {
-    // Alle Räume holen
     final roomRecords = await widget.pb.collection('rooms').getFullList(sort: 'name');
     final allRooms = roomRecords.map((r) => Room.fromRecord(r)).toList();
 
-    // Alle Container holen, um zu sehen, welche Räume belegt sind
     final containerRecords = await widget.pb.collection('containers').getFullList(fields: 'room');
     final Set<String> roomIdsWithContainers = containerRecords
         .map((c) => c.getStringValue('room'))
         .where((id) => id.isNotEmpty)
         .toSet();
 
-    // Nur Räume zurückgeben, die mindestens einen Container haben
     return allRooms.where((room) => roomIdsWithContainers.contains(room.id)).toList();
   }
 
-  Future<void> _fetchContainers(String roomId) async {
-    final records = await widget.pb.collection('containers').getFullList(
+  Future<void> _fetchLocations(String roomId) async {
+    final records = await widget.pb.collection('storage_locations').getFullList(
       filter: 'room = "$roomId"',
+      sort: 'name',
+    );
+    setState(() {
+      _locations = records.map((r) => StorageLocation.fromRecord(r)).toList();
+      _selectedLocationId = null;
+      _containers = null;
+      _selectedContainerId = null;
+    });
+    // Auch Container ohne Location für diesen Raum laden
+    _fetchContainers(roomId, null);
+  }
+
+  Future<void> _fetchContainers(String roomId, String? locationId) async {
+    String filter = 'room = "$roomId"';
+    if (locationId != null) {
+      filter += ' && storage_location = "$locationId"';
+    } else {
+      filter += ' && storage_location = ""';
+    }
+
+    final records = await widget.pb.collection('containers').getFullList(
+      filter: filter,
       sort: 'name',
     );
     setState(() {
@@ -111,7 +135,7 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
                   child: DropdownButtonFormField<String>(
-                    isExpanded: true, // Wichtig für breite Texte
+                    isExpanded: true,
                     decoration: const InputDecoration(border: InputBorder.none),
                     value: _selectedRoomId,
                     hint: const Text('Raum auswählen'),
@@ -127,7 +151,7 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
                     )).toList(),
                     onChanged: (val) {
                       setState(() => _selectedRoomId = val);
-                      if (val != null) _fetchContainers(val);
+                      if (val != null) _fetchLocations(val);
                     },
                   ),
                 );
@@ -136,7 +160,36 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
             
             const SizedBox(height: 24),
             
-            _buildSectionTitle('2. Container wählen'),
+            _buildSectionTitle('2. Ablageort (optional)'),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: _selectedRoomId == null ? Colors.grey.withAlpha(10) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: DropdownButtonFormField<String?>(
+                isExpanded: true,
+                decoration: const InputDecoration(border: InputBorder.none),
+                value: _selectedLocationId,
+                disabledHint: const Text('Zuerst Raum wählen'),
+                hint: const Text('Direkt im Raum'),
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('Direkt im Raum (kein Ort)')),
+                  ...?_locations?.map((l) => DropdownMenuItem<String?>(
+                    value: l.id, 
+                    child: Row(children: [Icon(l.iconData, size: 20), const SizedBox(width: 12), Expanded(child: Text(l.name, overflow: TextOverflow.ellipsis))])
+                  )),
+                ],
+                onChanged: _selectedRoomId == null ? null : (val) {
+                  setState(() => _selectedLocationId = val);
+                  _fetchContainers(_selectedRoomId!, val);
+                },
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            
+            _buildSectionTitle('3. Container wählen'),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
@@ -144,7 +197,7 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: DropdownButtonFormField<String>(
-                isExpanded: true, // Wichtig für breite Texte
+                isExpanded: true,
                 decoration: const InputDecoration(border: InputBorder.none),
                 value: _selectedContainerId,
                 disabledHint: const Text('Zuerst Raum wählen'),
@@ -178,7 +231,12 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: _isSaving ? null : () {
-                setState(() { _selectedContainerId = null; _selectedRoomId = null; _containers = null; });
+                setState(() { 
+                  _selectedContainerId = null; 
+                  _selectedRoomId = null; 
+                  _selectedLocationId = null;
+                  _containers = null; 
+                });
                 _saveMove();
               },
               style: OutlinedButton.styleFrom(
