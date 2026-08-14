@@ -50,19 +50,15 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
     return InventoryPageLayout(
       title: 'Artikelsuche',
       subtitle: 'Gesamtes Inventar durchsuchen',
-      filterChips: [
-        Expanded(
-          child: SearchBar(
-            controller: _searchController,
-            hintText: 'Was suchst du?',
-            leading: const Icon(Icons.search, size: 20),
-            elevation: WidgetStateProperty.all(0),
-            backgroundColor: WidgetStateProperty.all(Theme.of(context).cardTheme.color),
-            shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-            onChanged: _performSearch,
-          ),
-        ),
-      ],
+      filterBar: SearchBar(
+        controller: _searchController,
+        hintText: 'Was suchst du?',
+        leading: const Icon(Icons.search, size: 20),
+        elevation: WidgetStateProperty.all(0),
+        backgroundColor: WidgetStateProperty.all(Theme.of(context).cardTheme.color),
+        shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+        onChanged: _performSearch,
+      ),
       sectionTitle: _results.isNotEmpty ? 'Suchergebnisse' : null,
       slivers: [
         if (_isLoading)

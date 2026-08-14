@@ -49,8 +49,9 @@ class InventoryPageLayout extends StatelessWidget {
   final List<Widget>? actions;
   final Widget? drawer;
   final List<Widget>? filterChips;
+  final Widget? filterBar; // Neues Feld für volle Breite
   final String? sectionTitle;
-  final List<Widget> slivers; // Zwingend erforderlich
+  final List<Widget> slivers;
   final Widget? floatingActionButton;
 
   const InventoryPageLayout({
@@ -61,6 +62,7 @@ class InventoryPageLayout extends StatelessWidget {
     this.actions,
     this.drawer,
     this.filterChips,
+    this.filterBar,
     this.sectionTitle,
     required this.slivers,
     this.floatingActionButton,
@@ -132,12 +134,15 @@ class InventoryPageLayout extends StatelessWidget {
                 ),
               ),
             ),
-            if (filterChips != null || sectionTitle != null)
+            if (filterChips != null || filterBar != null || sectionTitle != null)
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _StickyHeaderDelegate(
                   isDark: isDark,
-                  height: (filterChips != null && sectionTitle != null) ? 120 : 80,
+                  // Höhen-Logik verfeinert: 130 wenn Suche+Titel, 120 wenn Chips+Titel, sonst 80
+                  height: (filterBar != null && sectionTitle != null) 
+                      ? 130 
+                      : (filterBar != null ? 90 : ((filterChips != null && sectionTitle != null) ? 120 : 80)),
                   child: Container(
                     color: Theme.of(context).scaffoldBackgroundColor.withAlpha(250),
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -145,6 +150,7 @@ class InventoryPageLayout extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (filterBar != null) filterBar!,
                         if (filterChips != null)
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
@@ -153,7 +159,7 @@ class InventoryPageLayout extends StatelessWidget {
                               children: filterChips!,
                             ),
                           ),
-                        if (filterChips != null && sectionTitle != null) const SizedBox(height: 12),
+                        if ((filterChips != null || filterBar != null) && sectionTitle != null) const SizedBox(height: 12),
                         if (sectionTitle != null)
                           Text(
                             sectionTitle!,

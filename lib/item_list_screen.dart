@@ -96,23 +96,18 @@ class _ItemListScreenState extends State<ItemListScreen> {
           ),
         const SizedBox(width: 16),
       ],
-      filterChips: [
-        SizedBox(
-          width: 400,
-          child: SearchBar(
-            controller: _searchController,
-            hintText: 'In dieser Box suchen...',
-            leading: const Icon(Icons.search, size: 20),
-            elevation: WidgetStateProperty.all(0),
-            backgroundColor: WidgetStateProperty.all(Theme.of(context).cardTheme.color),
-            shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-            onChanged: (val) {
-              setState(() => _searchQuery = val.trim());
-              _refreshItems();
-            },
-          ),
-        ),
-      ],
+      filterBar: SearchBar(
+        controller: _searchController,
+        hintText: 'In dieser Box suchen...',
+        leading: const Icon(Icons.search, size: 20),
+        elevation: WidgetStateProperty.all(0),
+        backgroundColor: WidgetStateProperty.all(Theme.of(context).cardTheme.color),
+        shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+        onChanged: (val) {
+          setState(() => _searchQuery = val.trim());
+          _refreshItems();
+        },
+      ),
       sectionTitle: 'Inhalt der Box',
       floatingActionButton: _buildFab(context),
       slivers: [
