@@ -47,70 +47,74 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FE),
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withAlpha(10),
-                  shape: BoxShape.circle,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 450), // Begrenzt die Breite im Browser
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withAlpha(10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.lock_person_outlined, size: 64, color: Theme.of(context).colorScheme.primary),
                 ),
-                child: Icon(Icons.lock_person_outlined, size: 64, color: Theme.of(context).colorScheme.primary),
-              ),
-              const SizedBox(height: 32),
-              Text('Willkommen zurück', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-              const Text('Bitte melde dich an, um dein Inventar zu sehen'),
-              AutofillGroup( // Gruppiert die Felder für Passwortmanager
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _emailController,
-                      autofillHints: const [AutofillHints.email], // Bitwarden-Tipp für E-Mail
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        labelText: 'E-Mail',
-                        prefixIcon: const Icon(Icons.email_outlined),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _passwordController,
-                      autofillHints: const [AutofillHints.password], // Bitwarden-Tipp für Passwort
-                      obscureText: _obscurePassword,
-                      onSubmitted: (_) => _login(), // Login bei Enter
-                      decoration: InputDecoration(
-                        labelText: 'Passwort',
-                        prefixIcon: const Icon(Icons.password_outlined),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                const SizedBox(height: 32),
+                Text('Willkommen zurück', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+                const Text('Bitte melde dich an, um dein Inventar zu sehen'),
+                const SizedBox(height: 48), // Abstand wieder eingefügt
+                AutofillGroup( // Gruppiert die Felder für Passwortmanager
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _emailController,
+                        autofillHints: const [AutofillHints.email], // Bitwarden-Tipp für E-Mail
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          labelText: 'E-Mail',
+                          prefixIcon: const Icon(Icons.email_outlined),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                         ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _passwordController,
+                        autofillHints: const [AutofillHints.password], // Bitwarden-Tipp für Passwort
+                        obscureText: _obscurePassword,
+                        onSubmitted: (_) => _login(), // Login bei Enter
+                        decoration: InputDecoration(
+                          labelText: 'Passwort',
+                          prefixIcon: const Icon(Icons.password_outlined),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 48),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _isLoading ? null : _login,
-                  style: FilledButton.styleFrom(padding: const EdgeInsets.all(20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
-                  child: _isLoading 
-                    ? const CircularProgressIndicator(color: Colors.white) 
-                    : const Text('Anmelden', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _isLoading ? null : _login,
+                    style: FilledButton.styleFrom(padding: const EdgeInsets.all(20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+                    child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white) 
+                      : const Text('Anmelden', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
