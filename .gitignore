@@ -36,8 +36,29 @@ migrate_working_dir/
 # Symbolication related
 app.*.symbols
 
+# OBJECTION: Don't push local environment configs or secrets
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+google-services.json
+
+# PocketBase (if kept in this dir)
+pocketbase
+pocketbase.exe
+pb_data/
+pb_public/
+
 # Obfuscation related
 app.*.map.json
+
+# Reports and DevTools
+problems-report.html
+devtools_options.yaml
+*.html
+*.xml.gz
 
 # Android Studio will place build artifacts here
 /android/app/debug

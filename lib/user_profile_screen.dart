@@ -17,6 +17,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  bool _useBiometrics = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricSetting();
+  }
+
+  Future<void> _loadBiometricSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _useBiometrics = prefs.getBool('useBiometrics') ?? false;
+    });
+  }
+
+  Future<void> _toggleBiometrics(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('useBiometrics', value);
+    setState(() => _useBiometrics = value);
+  }
 
   @override
   void dispose() {
@@ -146,6 +166,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ],
                   );
                 },
+              ),
+            ),
+
+            const SizedBox(height: 32),
+            const Text('Sicherheit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardTheme.color,
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: SwitchListTile(
+                secondary: const Icon(Icons.fingerprint),
+                title: const Text('Biometrischer Login'),
+                subtitle: const Text('App-Start mit Fingerabdruck/FaceID schützen'),
+                value: _useBiometrics,
+                onChanged: _toggleBiometrics,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               ),
             ),
 

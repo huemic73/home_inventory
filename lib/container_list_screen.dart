@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
@@ -225,7 +226,11 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: BoxDecoration(color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(32), boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 4))]),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color, 
+        borderRadius: BorderRadius.circular(32), 
+        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 4))]
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -296,7 +301,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       builder: (context) => InventoryForm(
         title: location == null ? 'Neuer Ablageort' : 'Ort bearbeiten',
         initialName: location?.name,
-        initialPhotoUrl: location != null && location.photo.isNotEmpty ? widget.pb.files.getUrl(locRecord: location.record, fileName: location.photo).toString() : null,
+        initialPhotoUrl: location != null && location.photo.isNotEmpty ? widget.pb.files.getUrl(location.record, location.photo).toString() : null,
         initialIcon: location?.iconName ?? 'shelves',
         showIcons: true,
         availableIcons: const ['shelves', 'door_sliding', 'home_repair_service'],

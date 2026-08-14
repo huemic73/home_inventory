@@ -166,8 +166,11 @@ class _RoomListScreenState extends State<RoomListScreen> {
       ],
       onDestinationSelected: (index) {
         Navigator.pop(context);
-        if (index == 1) Navigator.push(context, MaterialPageRoute(builder: (context) => BulkQrPrintScreen(pb: widget.pb)));
-        else if (index == 2) Navigator.push(context, MaterialPageRoute(builder: (context) => UserProfileScreen(pb: widget.pb)));
+        if (index == 1) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => BulkQrPrintScreen(pb: widget.pb)));
+        } else if (index == 2) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => UserProfileScreen(pb: widget.pb)));
+        }
       },
     );
   }
@@ -247,17 +250,43 @@ class _RoomListScreenState extends State<RoomListScreen> {
         onSave: (name, quantity, imageFile, icon, labelId) async {
           final data = {'name': name, 'icon': icon};
           try {
-            if (room == null) await widget.pb.collection('rooms').create(body: data);
-            else await widget.pb.collection('rooms').update(room.id, body: data);
+            if (room == null) {
+              await widget.pb.collection('rooms').create(body: data);
+            } else {
+              await widget.pb.collection('rooms').update(room.id, body: data);
+            }
             if (context.mounted) Navigator.pop(context);
             _refreshRooms();
-          } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+            }
+          }
         },
       ),
     );
   }
 
   void _showDeleteConfirmDialog(BuildContext context, Room room) {
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Löschen?'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')), TextButton(onPressed: () async { final nav = Navigator.of(context); await widget.pb.collection('rooms').delete(room.id); if (context.mounted) { nav.pop(); _refreshRooms(); } }, child: const Text('Löschen', style: TextStyle(color: Colors.red)))])),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Löschen?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await widget.pb.collection('rooms').delete(room.id);
+              if (context.mounted) {
+                nav.pop();
+                _refreshRooms();
+              }
+            },
+            child: const Text('Löschen', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 import 'room_list_screen.dart';
 import 'login_screen.dart';
 
@@ -14,7 +15,7 @@ void main() async {
   
   // Gespeichertes Theme laden
   final prefs = await SharedPreferences.getInstance();
-  final themeIndex = prefs.getInt('themeMode') ?? 0; // 0 = system, 1 = light, 2 = dark
+  final themeIndex = prefs.getInt('themeMode') ?? 0;
   themeNotifier.value = ThemeMode.values[themeIndex];
 
   runApp(const HomeInventoryApp());
@@ -33,8 +34,7 @@ class HomeInventoryApp extends StatelessWidget {
     }
 
     final pb = PocketBase(baseUrl);
-    final bool isLoggedIn = pb.authStore.isValid;
-
+    
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (context, currentMode, child) {
@@ -42,7 +42,6 @@ class HomeInventoryApp extends StatelessWidget {
           title: 'Heiminventarisierung',
           debugShowCheckedModeBanner: false,
           themeMode: currentMode,
-          // Helles Theme
           theme: ThemeData(
             useMaterial3: true,
             colorScheme: ColorScheme.fromSeed(
@@ -57,7 +56,6 @@ class HomeInventoryApp extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
             ),
           ),
-          // Dunkles Theme
           darkTheme: ThemeData(
             useMaterial3: true,
             brightness: Brightness.dark,
@@ -66,8 +64,7 @@ class HomeInventoryApp extends StatelessWidget {
               brightness: Brightness.dark,
               surface: const Color(0xFF1A1C1E),
               onSurface: Colors.white,
-              // Hellere Indigo-Töne für den Dark Mode
-              primary: const Color(0xFF9FA8DA), 
+              primary: const Color(0xFF9FA8DA),
               onPrimary: const Color(0xFF1A1C1E),
               primaryContainer: const Color(0xFF3F51B5).withAlpha(100),
               onPrimaryContainer: Colors.white,
@@ -95,9 +92,84 @@ class HomeInventoryApp extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
           ),
-          home: isLoggedIn ? RoomListScreen(pb: pb) : LoginScreen(pb: pb),
+          home: AuthCheck(pb: pb),
         );
       },
+    );
+  }
+}
+
+class AuthCheck extends StatefulWidget {
+  final PocketBase pb;
+  const AuthCheck({super.key, required this.pb});
+
+  @override
+  State<AuthCheck> createState() => _AuthCheckState();
+}
+
+class _AuthCheckState extends State<AuthCheck> {
+  final LocalAuthentication auth = LocalAuthentication();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final bool isLoggedIn = widget.pb.authStore.isValid;
+
+    if (!isLoggedIn) {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => LoginScreen(pb: widget.pb)),
+        );
+      }
+      return;
+    }
+
+    // Gespeichertes Setting prüfen
+    final prefs = await SharedPreferences.getInstance();
+    final bool useBiometrics = prefs.getBool('useBiometrics') ?? false;
+
+    if (useBiometrics && !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+      try {
+        final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
+        final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+
+        if (canAuthenticate) {
+          final bool didAuthenticate = await auth.authenticate(
+            localizedReason: 'Bitte authentifiziere dich, um dein Inventar zu öffnen',
+            options: const AuthenticationOptions(
+              stickyAuth: true,
+              biometricOnly: false, // Erlaubt auch PIN/Muster als Fallback
+            ),
+          );
+
+          if (didAuthenticate && mounted) {
+            _navigateToHome();
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint('Biometrie-Fehler: $e');
+      }
+    }
+
+    // Falls Web oder Biometrie fehlschlägt/nicht verfügbar, aber PB-Token valide ist
+    if (mounted) _navigateToHome();
+  }
+
+  void _navigateToHome() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => RoomListScreen(pb: widget.pb)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }
