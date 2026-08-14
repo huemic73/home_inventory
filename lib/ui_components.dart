@@ -93,8 +93,10 @@ class InventoryPageLayout extends StatelessWidget {
               expandedHeight: hasHeaderImage ? 250 : 140,
               pinned: true,
               elevation: 0,
-              backgroundColor: isDark ? Colors.black26 : Colors.transparent,
-              foregroundColor: Colors.white,
+              backgroundColor: isDark 
+                  ? Colors.black26 
+                  : (hasHeaderImage ? Theme.of(context).colorScheme.primary : Colors.transparent),
+              foregroundColor: isDark || hasHeaderImage ? Colors.white : Colors.black87,
               actions: actions,
               flexibleSpace: FlexibleSpaceBar(
                 background: hasHeaderImage 
@@ -121,14 +123,21 @@ class InventoryPageLayout extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.white),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800, 
+                        fontSize: 18, 
+                        color: isDark || hasHeaderImage ? Colors.white : Colors.black87
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (subtitle != null)
                       Text(
                         subtitle!,
-                        style: const TextStyle(fontSize: 10, color: Colors.white70),
+                        style: TextStyle(
+                          fontSize: 10, 
+                          color: isDark || hasHeaderImage ? Colors.white70 : Colors.black54
+                        ),
                       ),
                   ],
                 ),
@@ -150,13 +159,13 @@ class InventoryPageLayout extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (filterBar != null) filterBar!,
-                        if (filterChips != null)
+                        if (filterBar case final Widget bar) bar,
+                        if (filterChips case final List<Widget> chips)
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: filterChips!,
+                              children: chips,
                             ),
                           ),
                         if ((filterChips != null || filterBar != null) && sectionTitle != null) const SizedBox(height: 12),

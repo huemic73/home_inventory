@@ -131,6 +131,7 @@ class AuthCheck extends StatefulWidget {
 
 class _AuthCheckState extends State<AuthCheck> {
   final LocalAuthentication auth = LocalAuthentication();
+  bool _authFailed = false;
 
   @override
   void initState() {
@@ -152,6 +153,9 @@ class _AuthCheckState extends State<AuthCheck> {
     final bool useBiometrics = prefs.getBool('useBiometrics') ?? false;
 
     if (useBiometrics && !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+      setState(() {
+        _authFailed = false;
+      });
       try {
         final bool didAuthenticate = await auth.authenticate(
           localizedReason: 'Bitte authentifiziere dich, um dein Inventar zu öffnen',
@@ -162,11 +166,17 @@ class _AuthCheckState extends State<AuthCheck> {
           _navigateToHome();
           return;
         } else {
-          // Falls abgebrochen wurde, bieten wir Login oder erneuten Versuch an
-          // Für jetzt bleiben wir auf dem Ladebildschirm oder erzwingen Login
+          setState(() {
+            _authFailed = true;
+          });
+          return;
         }
       } catch (e) {
         debugPrint('Biometrie-Fehler: $e');
+        setState(() {
+          _authFailed = true;
+        });
+        return;
       }
     }
 
@@ -183,6 +193,80 @@ class _AuthCheckState extends State<AuthCheck> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_authFailed) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: (isDark ? Colors.indigo.shade900 : Colors.indigo.shade50).withAlpha(128),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.lock_outline,
+                    size: 64,
+                    color: isDark ? Colors.indigo.shade200 : Colors.indigo,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  'App gesperrt',
+                  style: GoogleFonts.outfit(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Bitte authentifiziere dich, um fortzufahren.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _checkAuth,
+                    icon: const Icon(Icons.fingerprint, size: 28),
+                    label: const Text('Entsperren', style: TextStyle(fontSize: 18)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: _goToLogin,
+                  child: Text(
+                    'Mit anderem Konto anmelden',
+                    style: TextStyle(color: isDark ? Colors.indigo.shade200 : Colors.indigo),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(color: Colors.indigo),
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'main.dart'; // Import für themeNotifier
+import 'ui_components.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final PocketBase pb;
@@ -104,140 +105,140 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final user = widget.pb.authStore.record;
     final email = user?.getStringValue('email') ?? 'Benutzer';
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Profil & Sicherheit', style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Info Card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(20),
-                    child: Icon(Icons.person, size: 30, color: Theme.of(context).colorScheme.primary),
+    return InventoryPageLayout(
+      title: 'Profil & Sicherheit',
+      subtitle: 'Dein Konto & Einstellungen',
+      slivers: [
+        SliverToBoxAdapter(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // User Info Card
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Angemeldet als', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                        Text(email, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            const Text('Erscheinungsbild', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(32),
-              ),
-              child: ValueListenableBuilder<ThemeMode>(
-                valueListenable: themeNotifier,
-                builder: (context, currentMode, _) {
-                  return Column(
+                  child: Row(
                     children: [
-                      _buildThemeOption(Icons.brightness_auto, 'Systemstandard', ThemeMode.system, currentMode),
-                      _buildThemeOption(Icons.light_mode_outlined, 'Hell', ThemeMode.light, currentMode),
-                      _buildThemeOption(Icons.dark_mode_outlined, 'Dunkel', ThemeMode.dark, currentMode),
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(20),
+                        child: Icon(Icons.person, size: 30, color: Theme.of(context).colorScheme.primary),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Angemeldet als', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text(email, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
                     ],
-                  );
-                },
-              ),
-            ),
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
+                const Text('Erscheinungsbild', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                  child: ValueListenableBuilder<ThemeMode>(
+                    valueListenable: themeNotifier,
+                    builder: (context, currentMode, _) {
+                      return Column(
+                        children: [
+                          _buildThemeOption(Icons.brightness_auto, 'Systemstandard', ThemeMode.system, currentMode),
+                          _buildThemeOption(Icons.light_mode_outlined, 'Hell', ThemeMode.light, currentMode),
+                          _buildThemeOption(Icons.dark_mode_outlined, 'Dunkel', ThemeMode.dark, currentMode),
+                        ],
+                      );
+                    },
+                  ),
+                ),
 
-            const SizedBox(height: 32),
-            const Text('Sicherheit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(32),
-              ),
-              child: SwitchListTile(
-                secondary: const Icon(Icons.fingerprint),
-                title: const Text('Biometrischer Login'),
-                subtitle: const Text('App-Start mit Fingerabdruck/FaceID schützen'),
-                value: _useBiometrics,
-                onChanged: _toggleBiometrics,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              ),
-            ),
+                const SizedBox(height: 32),
+                const Text('Sicherheit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                  child: SwitchListTile(
+                    secondary: const Icon(Icons.fingerprint),
+                    title: const Text('Biometrischer Login'),
+                    subtitle: const Text('App-Start mit Fingerabdruck/FaceID schützen'),
+                    value: _useBiometrics,
+                    onChanged: _toggleBiometrics,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  ),
+                ),
 
-            const SizedBox(height: 32),
-            const Text('Passwort ändern', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(32),
-              ),
-              child: Column(
-                children: [
-                  _buildPasswordField(_oldPasswordController, 'Aktuelles Passwort'),
-                  const SizedBox(height: 16),
-                  _buildPasswordField(_newPasswordController, 'Neues Passwort'),
-                  const SizedBox(height: 16),
-                  _buildPasswordField(_confirmPasswordController, 'Neues Passwort bestätigen'),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _isLoading ? null : _changePassword,
-                      style: FilledButton.styleFrom(padding: const EdgeInsets.all(16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                      child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Passwort aktualisieren'),
+                const SizedBox(height: 32),
+                const Text('Passwort ändern', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildPasswordField(_oldPasswordController, 'Aktuelles Passwort'),
+                      const SizedBox(height: 16),
+                      _buildPasswordField(_newPasswordController, 'Neues Passwort'),
+                      const SizedBox(height: 16),
+                      _buildPasswordField(_confirmPasswordController, 'Neues Passwort bestätigen'),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: _isLoading ? null : _changePassword,
+                          style: FilledButton.styleFrom(padding: const EdgeInsets.all(16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                          child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Passwort aktualisieren'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 48),
+                
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _logout,
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Abmelden'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.all(20),
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                     ),
                   ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 48),
-            
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _logout,
-                icon: const Icon(Icons.logout),
-                label: const Text('Abmelden'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.all(20),
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'models.dart';
@@ -84,7 +83,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   Widget build(BuildContext context) {
     final imageUrl = _getImageUrl();
 
-    // Pfad berechnen mit moderner .get<T> Logik
+    // Pfad berechnen
     String path = 'Ohne Zuordnung';
     final containerRecord = widget.item.record?.get<RecordModel?>('expand.container');
     if (containerRecord != null) {
@@ -102,127 +101,97 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 300,
-            pinned: true,
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  imageUrl.isNotEmpty
-                      ? CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover)
-                      : Container(
-                          color: Theme.of(context).colorScheme.primary.withAlpha(isDark ? 40 : 50),
-                          child: const Icon(Icons.inventory_2_outlined, size: 80, color: Colors.white54),
-                        ),
-                  if (_isUploading)
-                    Container(color: Colors.black26, child: const Center(child: CircularProgressIndicator(color: Colors.white))),
-                  // Gradient Overlay
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.black.withAlpha(100), Colors.transparent, Colors.black.withAlpha(150)],
-                          stops: const [0.0, 0.5, 1.0],
-                        ),
-                      ),
-                    ),
+    return InventoryPageLayout(
+      title: _currentName,
+      subtitle: path,
+      imageUrl: imageUrl,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.qr_code_2),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => QrDisplayScreen(item: widget.item))),
+        ),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) {
+            if (value == 'edit') {
+              _showEditItemDialog();
+            } else if (value == 'delete') {
+              _showDeleteConfirmDialog();
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+            const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+          ],
+        ),
+      ],
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_isUploading)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: LinearProgressIndicator(),
                   ),
-                ],
-              ),
-              title: Text(_currentName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.qr_code_2),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => QrDisplayScreen(item: widget.item))),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    _showEditItemDialog();
-                  } else if (value == 'delete') {
-                    _showDeleteConfirmDialog();
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                  const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-                ],
-              ),
-            ],
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(32),
-                      boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
-                    ),
-                    child: Column(
-                      children: [
-                        _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
-                        const Divider(height: 32),
-                        _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
-                        const Divider(height: 32),
-                        _buildInfoRow(context, 'Standort', path, Icons.location_on_outlined),
-                      ],
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
                   ),
-                  const SizedBox(height: 32),
-                  const Text('Aktionen', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: _buildActionButton(
-                          context, 
-                          'Foto ändern', 
-                          Icons.add_a_photo_outlined, 
-                          () => _showImageSourceActionSheet(context)
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildActionButton(
-                          context, 
-                          'Verschieben', 
-                          Icons.drive_file_move_outlined, 
-                          () async {
-                            final navigator = Navigator.of(context);
-                            final result = await Navigator.push(
-                              context, 
-                              MaterialPageRoute(builder: (context) => MoveItemScreen(pb: widget.pb, item: widget.item))
-                            );
-                            if (result == true) {
-                              navigator.pop(true); 
-                            }
-                          }
-                        ),
-                      ),
+                      _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
+                      const Divider(height: 32),
+                      _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
+                      const Divider(height: 32),
+                      _buildInfoRow(context, 'Standort', path, Icons.location_on_outlined),
                     ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+                const Text('Aktionen', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildActionButton(
+                        context, 
+                        'Foto ändern', 
+                        Icons.add_a_photo_outlined, 
+                        () => _showImageSourceActionSheet(context)
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildActionButton(
+                        context, 
+                        'Verschieben', 
+                        Icons.drive_file_move_outlined, 
+                        () async {
+                          final navigator = Navigator.of(context);
+                          final result = await Navigator.push(
+                            context, 
+                            MaterialPageRoute(builder: (context) => MoveItemScreen(pb: widget.pb, item: widget.item))
+                          );
+                          if (result == true) {
+                            navigator.pop(true); 
+                          }
+                        }
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
