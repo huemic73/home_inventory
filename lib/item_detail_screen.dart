@@ -288,6 +288,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   Widget _buildInfoRow(BuildContext context, String label, String value, IconData icon) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center, // Vertikale Ausrichtung
       children: [
         Container(
           padding: const EdgeInsets.all(10),
@@ -295,12 +296,18 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           child: Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
         ),
         const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontSize: 11, fontWeight: FontWeight.w600)),
-            Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
+        Expanded( // WICHTIG: Erlaubt der Spalte den restlichen Platz zu nutzen
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontSize: 11, fontWeight: FontWeight.w600)),
+              Text(
+                value, 
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                softWrap: true, // Zeilenumbruch erlauben
+              ),
+            ],
+          ),
         ),
       ],
     );
