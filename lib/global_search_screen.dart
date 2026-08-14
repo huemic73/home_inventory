@@ -101,9 +101,12 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
     if (containerRecord != null) {
       final roomName = containerRecord.expand['room']?.first.getStringValue('name') ?? 'Unbekannt';
       final containerName = containerRecord.getStringValue('name');
-      final locName = containerRecord.expand['storage_location']?.first.getStringValue('name');
       
-      if (locName != null) {
+      // Prüfen ob Ablageort existiert UND nicht leer ist
+      final locRecord = containerRecord.expand['storage_location']?.first;
+      final locName = locRecord?.getStringValue('name');
+      
+      if (locName != null && locName.isNotEmpty) {
         path = '$roomName > $locName > $containerName';
       } else {
         path = '$roomName > $containerName';
@@ -144,7 +147,16 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
             ),
           ],
         ),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ItemDetailScreen(item: item, pb: widget.pb))),
+        onTap: () async {
+          final result = await Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (context) => ItemDetailScreen(item: item, pb: widget.pb))
+          );
+          // Falls verschoben oder gelöscht wurde (result == true), Liste aktualisieren
+          if (result == true) {
+            _performSearch(_searchController.text);
+          }
+        },
       ),
     );
   }
