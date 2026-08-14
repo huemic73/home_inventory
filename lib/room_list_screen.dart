@@ -7,7 +7,7 @@ import 'scanner_screen.dart';
 import 'bulk_qr_print_screen.dart';
 import 'user_profile_screen.dart';
 import 'global_search_screen.dart';
-import 'inventory_form.dart'; 
+import 'ui_components.dart'; 
 
 class RoomListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -223,9 +223,9 @@ class _RoomListScreenState extends State<RoomListScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: StandardFab(
+        label: 'Raum',
         onPressed: () => _showAddRoomDialog(context),
-        child: const Icon(Icons.add, size: 32),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );

@@ -115,7 +115,7 @@ class _MoveContainerScreenState extends State<MoveContainerScreen> {
                   child: DropdownButtonFormField<String>(
                     isExpanded: true,
                     decoration: const InputDecoration(border: InputBorder.none),
-                    value: _selectedRoomId,
+                    initialValue: _selectedRoomId,
                     items: rooms.map((r) => DropdownMenuItem(value: r.id, child: Row(children: [Icon(r.iconData, size: 20), const SizedBox(width: 12), Text(r.name)]))).toList(),
                     onChanged: (val) {
                       setState(() {
@@ -142,7 +142,7 @@ class _MoveContainerScreenState extends State<MoveContainerScreen> {
               child: DropdownButtonFormField<String?>( // Typ auf String? geändert
                 isExpanded: true,
                 decoration: const InputDecoration(border: InputBorder.none),
-                value: _selectedLocationId,
+                initialValue: _selectedLocationId,
                 hint: const Text('Direkt im Raum (kein spezieller Ort)'),
                 items: [
                   const DropdownMenuItem<String?>(

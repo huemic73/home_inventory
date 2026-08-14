@@ -67,11 +67,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
   void _navigateToItems(RecordModel record) {
     final container = InventoryContainer.fromRecord(record);
     Room? room;
-    if (record.expand['room'] != null) room = Room.fromRecord(record.expand['room']!.first);
+    final roomRecord = record.get<RecordModel?>('expand.room');
+    if (roomRecord != null) room = Room.fromRecord(roomRecord);
     
     StorageLocation? location;
-    if (record.expand['storage_location'] != null) {
-      location = StorageLocation.fromRecord(record.expand['storage_location']!.first);
+    final locRecord = record.get<RecordModel?>('expand.storage_location');
+    if (locRecord != null) {
+      location = StorageLocation.fromRecord(locRecord);
     }
 
     if (mounted) {

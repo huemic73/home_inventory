@@ -95,15 +95,15 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       imageUrl = widget.pb.files.getUrl(item.record!, item.photo).toString();
     }
 
-    // Pfad zusammenbauen aus Expand-Daten
+    // Pfad zusammenbauen mit moderner .get<T> Logik
     String path = 'Ohne Zuordnung';
-    final containerRecord = item.record?.expand['container']?.first;
+    final containerRecord = item.record?.get<RecordModel?>('expand.container');
+    
     if (containerRecord != null) {
-      final roomName = containerRecord.expand['room']?.first.getStringValue('name') ?? 'Unbekannt';
+      final roomName = containerRecord.get<RecordModel?>('expand.room')?.getStringValue('name') ?? 'Unbekannt';
       final containerName = containerRecord.getStringValue('name');
       
-      // Prüfen ob Ablageort existiert UND nicht leer ist
-      final locRecord = containerRecord.expand['storage_location']?.first;
+      final locRecord = containerRecord.get<RecordModel?>('expand.storage_location');
       final locName = locRecord?.getStringValue('name');
       
       if (locName != null && locName.isNotEmpty) {

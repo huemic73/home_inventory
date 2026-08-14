@@ -4,11 +4,10 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'dart:io' as io;
 import 'models.dart';
 import 'move_item_screen.dart';
 import 'qr_display_screen.dart';
-import 'inventory_form.dart'; // Import hinzugefügt
+import 'ui_components.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   final Item item;
@@ -79,15 +78,16 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   Widget build(BuildContext context) {
     final imageUrl = _getImageUrl();
 
-    // Pfad berechnen
+    // Pfad berechnen mit moderner .get<T> Logik
     String path = 'Ohne Zuordnung';
-    final containerRecord = widget.item.record?.expand['container']?.first;
+    final containerRecord = widget.item.record?.get<RecordModel?>('expand.container');
     if (containerRecord != null) {
-      final roomName = containerRecord.expand['room']?.first.getStringValue('name') ?? 'Unbekannter Raum';
+      final roomName = containerRecord.get<RecordModel?>('expand.room')?.getStringValue('name') ?? 'Unbekannter Raum';
       final containerName = containerRecord.getStringValue('name');
-      final locName = containerRecord.expand['storage_location']?.first.getStringValue('name');
+      final locRecord = containerRecord.get<RecordModel?>('expand.storage_location');
+      final locName = locRecord?.getStringValue('name');
       
-      if (locName != null) {
+      if (locName != null && locName.isNotEmpty) {
         path = '$roomName > $locName > $containerName';
       } else {
         path = '$roomName > $containerName';
@@ -142,8 +142,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
-                  if (value == 'edit') _showEditItemDialog();
-                  else if (value == 'delete') _showDeleteConfirmDialog();
+                  if (value == 'edit') {
+                    _showEditItemDialog();
+                  } else if (value == 'delete') {
+                    _showDeleteConfirmDialog();
+                  }
                 },
                 itemBuilder: (context) => [
                   const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
@@ -195,8 +198,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                           'Verschieben', 
                           Icons.drive_file_move_outlined, 
                           () async {
-                            final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => MoveItemScreen(pb: widget.pb, item: widget.item)));
-                            if (result == true && mounted) Navigator.pop(context, true); 
+                            final navigator = Navigator.of(context);
+                            final result = await Navigator.push(
+                              context, 
+                              MaterialPageRoute(builder: (context) => MoveItemScreen(pb: widget.pb, item: widget.item))
+                            );
+                            if (result == true) {
+                              navigator.pop(true); 
+                            }
                           }
                         ),
                       ),

@@ -1,11 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'item_detail_screen.dart';
 import 'pick_unassigned_items_screen.dart';
 
 import 'qr_display_screen.dart'; 
-import 'inventory_form.dart'; // Import hinzugefügt
+import 'ui_components.dart';
 
 class ItemListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -311,25 +313,23 @@ class _ItemListScreenState extends State<ItemListScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.container != null) ...[
-          FloatingActionButton.extended(
+          StandardFab(
             heroTag: 'pick_existing',
+            label: 'Bestehende wählen',
+            icon: Icons.playlist_add,
             onPressed: () async {
               final res = await Navigator.push(context, MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetContainer: widget.container!)));
               if (res == true) _refreshItems();
             },
-            icon: const Icon(Icons.playlist_add),
-            label: const Text('Bestehende wählen'),
             backgroundColor: isDark ? const Color(0xFF2D2F36) : Colors.white,
             foregroundColor: Theme.of(context).colorScheme.primary,
-            elevation: 2,
           ),
           const SizedBox(height: 12),
         ],
-        FloatingActionButton.extended(
+        StandardFab(
           heroTag: 'add_new',
+          label: 'Artikel',
           onPressed: () => _showAddItemDialog(context),
-          icon: const Icon(Icons.add),
-          label: const Text('Neu anlegen'),
         ),
       ],
     );

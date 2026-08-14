@@ -50,7 +50,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final userId = widget.pb.authStore.model.id;
+      final userId = widget.pb.authStore.record!.id;
       await widget.pb.collection('users').update(
         userId,
         body: {
@@ -81,8 +81,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = widget.pb.authStore.model;
-    final email = user is RecordModel ? user.getStringValue('email') : 'Benutzer';
+    final user = widget.pb.authStore.record;
+    final email = user?.getStringValue('email') ?? 'Benutzer';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,

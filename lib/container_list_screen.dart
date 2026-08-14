@@ -1,14 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'dart:io' as io;
 import 'models.dart';
 import 'item_list_screen.dart';
-import 'scanner_screen.dart';
 import 'move_container_screen.dart';
-import 'inventory_form.dart';
+import 'ui_components.dart';
 
 class ContainerListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -24,7 +21,7 @@ class ContainerListScreen extends StatefulWidget {
 class _ContainerListScreenState extends State<ContainerListScreen> {
   late Future<Map<String, dynamic>> _dataFuture;
   Map<String, int> _containerItemCounts = {};
-  Map<String, int> _locationContainerCounts = {}; // Neu: Kisten pro Regal
+  Map<String, int> _locationContainerCounts = {};
   bool _onlyWithItems = false;
 
   @override
@@ -58,7 +55,6 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     final contRecords = await widget.pb.collection('containers').getFullList(filter: filter, sort: 'name');
     final containers = contRecords.map((r) => InventoryContainer.fromRecord(r)).toList();
     
-    // Zähle Container pro Ablageort im ganzen Raum (für die Übersichtskacheln)
     final allRoomContRecords = await widget.pb.collection('containers').getFullList(
       filter: 'room = "${widget.room.id}"',
       fields: 'storage_location',
@@ -108,31 +104,14 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: 120, 
-              pinned: true, 
-              backgroundColor: Colors.transparent, 
-              elevation: 0,
+              expandedHeight: 120, pinned: true, backgroundColor: Colors.transparent, elevation: 0,
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 title: Column(
                   mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title, 
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800, 
-                        fontSize: 18, 
-                        color: isDark ? Colors.white : Colors.black87
-                      )
-                    ),
-                    if (subtitle != null) 
-                      Text(
-                        subtitle, 
-                        style: TextStyle(
-                          fontSize: 10, 
-                          color: Theme.of(context).colorScheme.primary.withAlpha(isDark ? 200 : 150)
-                        )
-                      ),
+                    Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: isDark ? Colors.white : Colors.black87)),
+                    if (subtitle != null) Text(subtitle, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.primary.withAlpha(isDark ? 200 : 150))),
                   ],
                 ),
               ),
@@ -140,10 +119,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                 IconButton(
                   icon: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white10 : Colors.white,
-                      shape: BoxShape.circle,
-                    ),
+                    decoration: BoxDecoration(color: isDark ? Colors.white10 : Colors.white, shape: BoxShape.circle),
                     child: Icon(Icons.refresh, color: isDark ? Colors.white : Theme.of(context).colorScheme.primary, size: 20),
                   ),
                   onPressed: _refreshData,
@@ -160,10 +136,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                     FilterChip(
                       label: const Text('Alle anzeigen'),
                       selected: !_onlyWithItems,
-                      onSelected: (val) => setState(() {
-                        _onlyWithItems = false;
-                        _refreshData();
-                      }),
+                      onSelected: (val) => setState(() { _onlyWithItems = false; _refreshData(); }),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       showCheckmark: false,
                     ),
@@ -171,10 +144,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                     FilterChip(
                       label: const Text('Nur belegte'),
                       selected: _onlyWithItems,
-                      onSelected: (val) => setState(() {
-                        _onlyWithItems = true;
-                        _refreshData();
-                      }),
+                      onSelected: (val) => setState(() { _onlyWithItems = true; _refreshData(); }),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       showCheckmark: false,
                     ),
@@ -186,19 +156,11 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
               future: _dataFuture,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
-                
                 var locations = snapshot.data!['locations'] as List<StorageLocation>;
                 var containers = snapshot.data!['containers'] as List<InventoryContainer>;
 
                 if (_onlyWithItems) {
-                  // Filter locations: Nur solche, die Container mit Items enthalten
-                  // Da wir hier eine Map _locationContainerCounts haben, können wir prüfen, 
-                  // ob der Ort überhaupt Container hat, aber wir müssten wissen ob diese Container Items haben.
-                  // Einfacher: Filter nur die Container-Liste.
                   containers = containers.where((c) => (_containerItemCounts[c.id] ?? 0) > 0).toList();
-                  
-                  // Locations filtern ist komplexer, da wir die Item-Anzahl pro Container pro Location bräuchten.
-                  // Wir belassen es erst mal bei den Containern.
                 }
 
                 return SliverPadding(
@@ -376,19 +338,17 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.storageLocation == null) ...[
-          FloatingActionButton.extended(
+          StandardFab(
             heroTag: 'add_loc',
+            label: 'Ablageort',
             onPressed: () => _showAddLocationDialog(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Ort'),
           ),
           const SizedBox(width: 16),
         ],
-        FloatingActionButton.extended(
+        StandardFab(
           heroTag: 'add_cont',
+          label: 'Container',
           onPressed: () => _showAddContainerDialog(context),
-          icon: const Icon(Icons.add),
-          label: const Text('Container'),
         ),
       ],
     );
@@ -486,28 +446,51 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     );
   }
 
-  void _showDeleteConfirmDialog(BuildContext context, InventoryContainer container) {
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Löschen?'), actions: [
+  void _showDeleteLocationConfirmDialog(BuildContext context, StorageLocation loc) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ort löschen?'),
+        content: Text('Soll "${loc.name}" wirklich gelöscht werden?'),
+        actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-          TextButton(onPressed: () async {
+          TextButton(
+            onPressed: () async {
               final nav = Navigator.of(context);
-              await widget.pb.collection('containers').delete(container.id);
-              if (context.mounted) { nav.pop(); _refreshData(); }
-            }, child: const Text('Löschen', style: TextStyle(color: Colors.red))),
+              await widget.pb.collection('storage_locations').delete(loc.id);
+              if (context.mounted) {
+                nav.pop();
+                _refreshData();
+              }
+            }, 
+            child: const Text('Löschen', style: TextStyle(color: Colors.red))
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSourceOption(BuildContext context, IconData icon, String label, VoidCallback onTap) {
-    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(24),
-      child: Padding(padding: const EdgeInsets.all(12),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), shape: BoxShape.circle), child: Icon(icon, size: 32, color: Theme.of(context).colorScheme.primary)),
-            const SizedBox(height: 8), Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
+  void _showDeleteConfirmDialog(BuildContext context, InventoryContainer container) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Löschen?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await widget.pb.collection('containers').delete(container.id);
+              if (context.mounted) {
+                nav.pop();
+                _refreshData();
+              }
+            }, 
+            child: const Text('Löschen', style: TextStyle(color: Colors.red))
+          ),
+        ],
       ),
     );
   }
+
 }

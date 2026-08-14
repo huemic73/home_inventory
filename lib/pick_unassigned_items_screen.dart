@@ -111,8 +111,11 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
                     secondary: _buildLeading(item),
                     onChanged: (val) {
                       setState(() {
-                        if (val == true) _selectedItemIds.add(item.id);
-                        else _selectedItemIds.remove(item.id);
+                        if (val == true) {
+                          _selectedItemIds.add(item.id);
+                        } else {
+                          _selectedItemIds.remove(item.id);
+                        }
                       });
                     },
                   ),

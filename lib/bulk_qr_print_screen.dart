@@ -43,7 +43,7 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
 
       final Map<String, List<InventoryContainer>> grouped = {};
       for (var c in containersToPrint) {
-        final roomName = c.record.expand['room']?.first.getStringValue('name') ?? 'Unbekannter Ort';
+        final roomName = c.record.get<RecordModel?>('expand.room')?.getStringValue('name') ?? 'Unbekannter Ort';
         grouped.putIfAbsent(roomName, () => []).add(c);
       }
 
@@ -70,7 +70,7 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                   spacing: 15, runSpacing: 15,
                   children: containers.map((container) {
                     String locationText = roomName;
-                    final locRecord = container.record.expand['storage_location']?.first;
+                    final locRecord = container.record.get<RecordModel?>('expand.storage_location');
                     if (locRecord != null) {
                       locationText += ' > ${locRecord.getStringValue('name')}';
                     }
@@ -217,8 +217,11 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                             value: isSelected,
                             onChanged: (val) {
                               setState(() {
-                                if (val == true) _selectedIds.add(container.id);
-                                else _selectedIds.remove(container.id);
+                                if (val == true) {
+                                  _selectedIds.add(container.id);
+                                } else {
+                                  _selectedIds.remove(container.id);
+                                }
                               });
                             },
                             title: Text(container.name, style: const TextStyle(fontWeight: FontWeight.bold)),

@@ -137,7 +137,7 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
                   child: DropdownButtonFormField<String>(
                     isExpanded: true,
                     decoration: const InputDecoration(border: InputBorder.none),
-                    value: _selectedRoomId,
+                    initialValue: _selectedRoomId,
                     hint: const Text('Raum auswählen'),
                     items: rooms.map((r) => DropdownMenuItem(
                       value: r.id, 
@@ -170,7 +170,7 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
               child: DropdownButtonFormField<String?>(
                 isExpanded: true,
                 decoration: const InputDecoration(border: InputBorder.none),
-                value: _selectedLocationId,
+                initialValue: _selectedLocationId,
                 disabledHint: const Text('Zuerst Raum wählen'),
                 hint: const Text('Direkt im Raum'),
                 items: [
@@ -199,7 +199,7 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
               child: DropdownButtonFormField<String>(
                 isExpanded: true,
                 decoration: const InputDecoration(border: InputBorder.none),
-                value: _selectedContainerId,
+                initialValue: _selectedContainerId,
                 disabledHint: const Text('Zuerst Raum wählen'),
                 hint: const Text('Box / Regal wählen'),
                 items: _containers?.map((c) => DropdownMenuItem(

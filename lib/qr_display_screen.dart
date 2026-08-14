@@ -96,7 +96,7 @@ class QrDisplayScreen extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, spreadRadius: 5),
+                      BoxShadow(color: Colors.black.withAlpha(25), blurRadius: 20, spreadRadius: 5),
                     ],
                   ),
                   child: PrettyQrView.data(
