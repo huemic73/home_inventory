@@ -3,34 +3,34 @@
 Dieses Dokument dient als Wissensbasis für KI-Assistenten, um den aktuellen Stand und die Architektur dieses Projekts schnell zu erfassen.
 
 ## 📌 Projektziel
-Entwicklung einer modernen, hierarchischen Inventarverwaltung. Fokus auf Schnelligkeit, visueller Orientierung (Fotos auf allen Ebenen) und einem flexiblen QR-Label-System.
+Entwicklung einer modernen, hierarchischen Inventarverwaltung. Fokus auf Schnelligkeit, visueller Orientierung und einem flexiblen QR-Label-System.
 
 ## 🛠 Tech-Stack & Architektur
 - **Frontend:** Flutter (Material 3)
 - **Backend:** PocketBase (Go/SQLite)
-- **Komponenten-Architektur:** Zentrale Steuerung von UI-Elementen über `lib/ui_components.dart` (z.B. `StandardFab`, `InventoryForm`).
+- **Master-Layout:** Alle Übersichtsseiten nutzen die `InventoryPageLayout`-Komponente (`lib/ui_components.dart`), was einheitliche Header, Gradients und Sticky-Effekte garantiert.
 - **Persistence:** `shared_preferences` für lokale Einstellungen (z.B. ThemeMode).
-- **Modernized Data Access:** Konsequente Nutzung der stabilen `.get<T>("expand...")` Syntax für PocketBase Records.
+- **Data Access:** Konsequente Nutzung von `.get<T>("expand...")` für robuste Typisierung.
 
 ## 🗂 Daten-Hierarchie
 1.  **Raum (`rooms`)**
-2.  **Ablageort (`storage_locations`)**: Optional (z.B. Regal, Schrank). Gehört zu Raum.
+2.  **Ablageort (`storage_locations`)**: Optional (Regal, Schrank). Gehört zu Raum.
 3.  **Container (`containers`)**: Gehört zu Raum und optional zu Ablageort.
 4.  **Artikel (`items`)**: Gehört zu Container.
 
 ## 🔍 Besondere Logik
-- **QR-System:** Erst-Suche nach manueller `labelId` (Recycling), dann Fallback auf DB-ID. Scannen einer Box fungiert als "digitales Fenster" zum Inhalt.
-- **Theme:** Dynamische Umschaltung (Light/Dark/System) im Benutzerprofil.
-- **Forms:** Alle Eingaben laufen über eine vereinheitlichte `InventoryForm` Komponente mit Bild-Support (Kamera/Galerie).
-- **Networking:** Automatisches Umschalten zwischen Localhost (Web) und PC-IP (Android Device).
+- **Sticky-Zone:** Suchleisten und Filter nutzen `SliverPersistentHeader`, um beim Scrollen oben anzudocken.
+- **QR-System:** Suche nach manueller `labelId` vor DB-ID. Scannen zeigt sofort Container-Inhalt ("Röntgenblick").
+- **Platform-Ready:** Die UI-Zentralisierung ist für **Platform-Adaptive Design** vorbereitet (einfaches Umschalten auf Cupertino/iOS-Stil in `ui_components.dart`).
+- **Forms:** Einheitliche `InventoryForm` Komponente für alle Datentypen mit Kamera/Galerie-Support.
 
 ## 🏗 Struktur & Dateien
-- `lib/ui_components.dart`: Basis aller Buttons und Formulare.
+- `lib/ui_components.dart`: Master-Layout, Standard-Buttons und Formulare.
 - `lib/models.dart`: Unified Models und Icon-Mapping.
-- `lib/main.dart`: Theme-Logik und App-Entry.
-- `lib/global_search_screen.dart`: Suche mit Echtzeit-Pfad-Update nach Verschiebe-Aktionen.
+- `lib/main.dart`: Theme-Logik, Auth-Check und App-Entry.
+- `lib/global_search_screen.dart`: Globale Suche mit Deep-Linking zur Detailansicht.
 
 ## 🚦 Aktueller Status
-- **Status:** Funktionsfähig & Optimiert.
-- **Highlights:** Vollständiger Dark-Mode-Support, einheitliche Formular-Layouts für Desktop/Mobile, robuste Fehlerbehandlung bei Netzwerk-Wechseln.
-- **Clean Code:** Unbenutzte Imports entfernt, asynchrone Context-Aufrufe (`await`) stabilisiert, Deprecated-Funktionen ersetzt.
+- **Status:** Funktionsfähig & Hochgradig optimiert.
+- **Highlights:** Vollständiger Dark-Mode-Support, einheitliche Formular-Layouts, robuste asynchrone Navigation (Context-Safety).
+- **Wartbarkeit:** Alle UI-Schrauben sind in `ui_components.dart` zentralisiert.
