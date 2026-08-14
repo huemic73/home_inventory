@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'models.dart';
 import 'item_detail_screen.dart';
-import 'add_item_screen.dart';
 import 'pick_unassigned_items_screen.dart';
 
-import 'qr_display_screen.dart'; // Import hinzugefügt
+import 'qr_display_screen.dart'; 
+import 'inventory_form.dart'; // Import hinzugefügt
 
 class ItemListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -82,8 +82,10 @@ class _ItemListScreenState extends State<ItemListScreen> {
       title = 'Ohne Zuordnung';
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -91,23 +93,23 @@ class _ItemListScreenState extends State<ItemListScreen> {
             pinned: true,
             elevation: 0,
             backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: containerImageUrl != null ? Colors.white : Theme.of(context).colorScheme.onSurface,
+            foregroundColor: Colors.white,
             actions: [
               if (widget.container != null)
                 IconButton(
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: containerImageUrl != null ? Colors.white24 : Colors.white,
+                      color: containerImageUrl != null ? Colors.white24 : (isDark ? Colors.white10 : Colors.white),
                       shape: BoxShape.circle,
                       boxShadow: [
-                        if (containerImageUrl == null)
+                        if (containerImageUrl == null && !isDark)
                           BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 10)
                       ],
                     ),
                     child: Icon(
                       Icons.qr_code, 
-                      color: containerImageUrl != null ? Colors.white : Theme.of(context).colorScheme.primary, 
+                      color: containerImageUrl != null || isDark ? Colors.white : Theme.of(context).colorScheme.primary, 
                       size: 20
                     ),
                   ),
@@ -142,7 +144,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Theme.of(context).colorScheme.primary.withAlpha(20),
+                            Theme.of(context).colorScheme.primary.withAlpha(isDark ? 40 : 20),
                             Theme.of(context).scaffoldBackgroundColor,
                           ],
                         ),
@@ -155,10 +157,10 @@ class _ItemListScreenState extends State<ItemListScreen> {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
-                      color: containerImageUrl != null ? Colors.white : null,
+                      color: Colors.white,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -166,9 +168,9 @@ class _ItemListScreenState extends State<ItemListScreen> {
                   if (subtitle != null)
                     Text(
                       subtitle,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 10,
-                        color: containerImageUrl != null ? Colors.white70 : Theme.of(context).colorScheme.primary.withAlpha(150),
+                        color: Colors.white70,
                       ),
                     ),
                 ],
@@ -192,7 +194,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withAlpha(20),
+                          color: Theme.of(context).colorScheme.primary.withAlpha(30),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -214,7 +216,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
                 hintText: 'Im Inhalt suchen...',
                 leading: const Icon(Icons.search, size: 20),
                 elevation: WidgetStateProperty.all(0),
-                backgroundColor: WidgetStateProperty.all(Colors.white),
+                backgroundColor: WidgetStateProperty.all(Theme.of(context).cardTheme.color),
                 shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
                 onChanged: (val) {
                   setState(() => _searchQuery = val.trim());
@@ -268,12 +270,13 @@ class _ItemListScreenState extends State<ItemListScreen> {
     if (item.photo.isNotEmpty && item.record != null) {
       imageUrl = widget.pb.files.getUrl(item.record!, item.photo).toString();
     }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
@@ -281,18 +284,18 @@ class _ItemListScreenState extends State<ItemListScreen> {
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withAlpha(10),
+            color: Theme.of(context).colorScheme.primary.withAlpha(15),
             borderRadius: BorderRadius.circular(16),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: imageUrl.isNotEmpty
                 ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
-                : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary.withAlpha(100)),
+                : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary.withAlpha(150)),
           ),
         ),
         title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${item.quantity} Stück', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150))),
+        subtitle: Text('${item.quantity} Stück', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200))),
         trailing: const Icon(Icons.chevron_right, size: 20),
         onTap: () async {
           await Navigator.push(context, MaterialPageRoute(builder: (context) => ItemDetailScreen(item: item, pb: widget.pb)));
@@ -303,6 +306,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
   }
 
   Widget _buildFab(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -315,7 +319,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
             },
             icon: const Icon(Icons.playlist_add),
             label: const Text('Bestehende wählen'),
-            backgroundColor: Colors.white,
+            backgroundColor: isDark ? const Color(0xFF2D2F36) : Colors.white,
             foregroundColor: Theme.of(context).colorScheme.primary,
             elevation: 2,
           ),
@@ -323,14 +327,50 @@ class _ItemListScreenState extends State<ItemListScreen> {
         ],
         FloatingActionButton.extended(
           heroTag: 'add_new',
-          onPressed: () async {
-            final res = await Navigator.push(context, MaterialPageRoute(builder: (context) => AddItemScreen(pb: widget.pb, container: widget.container)));
-            if (res == true) _refreshItems();
-          },
+          onPressed: () => _showAddItemDialog(context),
           icon: const Icon(Icons.add),
           label: const Text('Neu anlegen'),
         ),
       ],
+    );
+  }
+
+  void _showAddItemDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => InventoryForm(
+        title: 'Neuer Artikel',
+        showQuantity: true,
+        pb: widget.pb,
+        onSave: (name, quantity, imageFile, icon, labelId) async {
+          final Map<String, dynamic> body = {
+            'name': name,
+            'quantity': quantity,
+          };
+
+          if (widget.container != null) {
+            body['container'] = widget.container!.id;
+          }
+
+          List<http.MultipartFile> files = [];
+          if (imageFile != null) {
+            if (kIsWeb) {
+              final bytes = await imageFile.readAsBytes();
+              files.add(http.MultipartFile.fromBytes('photo', bytes, filename: imageFile.name));
+            } else {
+              files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            }
+          }
+
+          try {
+            await widget.pb.collection('items').create(body: body, files: files);
+            if (context.mounted) Navigator.pop(context);
+            _refreshItems();
+          } catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          }
+        },
+      ),
     );
   }
 }

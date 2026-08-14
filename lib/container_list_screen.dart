@@ -8,6 +8,7 @@ import 'models.dart';
 import 'item_list_screen.dart';
 import 'scanner_screen.dart';
 import 'move_container_screen.dart';
+import 'inventory_form.dart';
 
 class ContainerListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -90,27 +91,48 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   Widget build(BuildContext context) {
     final title = widget.storageLocation?.name ?? widget.room.name;
     final subtitle = widget.storageLocation != null ? 'In: ${widget.room.name}' : null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Theme.of(context).colorScheme.primary.withAlpha(20), Theme.of(context).scaffoldBackgroundColor],
+            colors: [
+              Theme.of(context).colorScheme.primary.withAlpha(isDark ? 40 : 20), 
+              Theme.of(context).scaffoldBackgroundColor
+            ],
           ),
         ),
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: 120, pinned: true, backgroundColor: Colors.transparent, elevation: 0,
+              expandedHeight: 120, 
+              pinned: true, 
+              backgroundColor: Colors.transparent, 
+              elevation: 0,
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 title: Column(
                   mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.black87)),
-                    if (subtitle != null) Text(subtitle, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.primary.withAlpha(150))),
+                    Text(
+                      title, 
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800, 
+                        fontSize: 18, 
+                        color: isDark ? Colors.white : Colors.black87
+                      )
+                    ),
+                    if (subtitle != null) 
+                      Text(
+                        subtitle, 
+                        style: TextStyle(
+                          fontSize: 10, 
+                          color: Theme.of(context).colorScheme.primary.withAlpha(isDark ? 200 : 150)
+                        )
+                      ),
                   ],
                 ),
               ),
@@ -118,8 +140,11 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                 IconButton(
                   icon: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                    child: Icon(Icons.refresh, color: Theme.of(context).colorScheme.primary, size: 20),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.refresh, color: isDark ? Colors.white : Theme.of(context).colorScheme.primary, size: 20),
                   ),
                   onPressed: _refreshData,
                 ),
@@ -218,9 +243,14 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   Widget _buildLocationCard(StorageLocation loc) {
     String imageUrl = loc.photo.isNotEmpty ? widget.pb.files.getUrl(loc.record, loc.photo).toString() : '';
     final containerCount = _locationContainerCounts[loc.id] ?? 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(32), boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 4))]),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color, 
+        borderRadius: BorderRadius.circular(32), 
+        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 4))]
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(32),
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, room: widget.room, storageLocation: loc))),
@@ -230,7 +260,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
             children: [
               Container(
                 width: 80, height: 80,
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(15), borderRadius: BorderRadius.circular(20)),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: imageUrl.isNotEmpty 
@@ -243,11 +273,11 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(loc.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(loc.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87), maxLines: 2, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withAlpha(100), borderRadius: BorderRadius.circular(20)),
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withAlpha(isDark ? 50 : 100), borderRadius: BorderRadius.circular(20)),
                       child: Text('$containerCount Container', style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer, fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ],
@@ -280,9 +310,14 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   Widget _buildContainerCard(BuildContext context, InventoryContainer container) {
     final itemCount = _containerItemCounts[container.id] ?? 0;
     String imageUrl = container.photo.isNotEmpty ? widget.pb.files.getUrl(container.record, container.photo).toString() : '';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(32), boxShadow: [BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 4))]),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color, 
+        borderRadius: BorderRadius.circular(32), 
+        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 4))]
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -297,7 +332,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
               children: [
                 Container(
                   width: 80, height: 80,
-                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), borderRadius: BorderRadius.circular(20)),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(15), borderRadius: BorderRadius.circular(20)),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: imageUrl.isNotEmpty 
@@ -310,9 +345,9 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(container.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(container.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87), maxLines: 2, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
-                      Text('$itemCount Artikel', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontSize: 11, fontWeight: FontWeight.bold)),
+                      Text('$itemCount Artikel', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200), fontSize: 11, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -360,246 +395,93 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   }
 
   void _showAddLocationDialog(BuildContext context, {StorageLocation? location}) {
-    final controller = TextEditingController(text: location?.name);
-    String selectedIcon = location?.iconName ?? 'shelves';
-    XFile? pickedFile;
-
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-          title: Text(location == null ? 'Neuer Ablageort' : 'Ort bearbeiten'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: () async {
-                    showModalBottomSheet(
-                      context: context,
-                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
-                      builder: (bottomSheetContext) => SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _buildSourceOption(context, Icons.photo_camera, 'Kamera', () async {
-                                Navigator.pop(bottomSheetContext);
-                                final picker = ImagePicker();
-                                final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
-                                if (file != null) setState(() => pickedFile = file);
-                              }),
-                              _buildSourceOption(context, Icons.photo_library, 'Galerie', () async {
-                                Navigator.pop(bottomSheetContext);
-                                final picker = ImagePicker();
-                                final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
-                                if (file != null) setState(() => pickedFile = file);
-                              }),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    height: 140, width: double.infinity,
-                    decoration: BoxDecoration(color: Colors.grey.withAlpha(20), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.withAlpha(40))),
-                    child: pickedFile != null
-                        ? ClipRRect(borderRadius: BorderRadius.circular(24), child: kIsWeb ? Image.network(pickedFile!.path, fit: BoxFit.cover) : Image.file(io.File(pickedFile!.path), fit: BoxFit.cover))
-                        : (location?.photo.isNotEmpty == true && pickedFile == null)
-                            ? ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.network(widget.pb.files.getUrl(location!.record, location.photo).toString(), fit: BoxFit.cover))
-                            : Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo, color: Theme.of(context).colorScheme.primary), const Text('Foto hinzufügen', style: TextStyle(fontSize: 12))]),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name (z.B. Regal A)', border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16))))),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8, runSpacing: 8,
-                  children: ['shelves', 'door_sliding', 'home_repair_service'].map((key) => GestureDetector(
-                    onTap: () => setState(() => selectedIcon = key),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: selectedIcon == key ? Theme.of(context).colorScheme.primary : Colors.grey.withAlpha(20), borderRadius: BorderRadius.circular(16)),
-                      child: Icon(iconMapping[key], color: selectedIcon == key ? Colors.white : Colors.black54),
-                    ),
-                  )).toList(),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-            FilledButton(
-              onPressed: () async {
-                if (controller.text.isNotEmpty) {
-                  final data = {'name': controller.text, 'icon': selectedIcon};
-                  List<http.MultipartFile> files = [];
-                  if (pickedFile != null) {
-                    if (kIsWeb) {
-                      final bytes = await pickedFile!.readAsBytes();
-                      files.add(http.MultipartFile.fromBytes('photo', bytes, filename: pickedFile!.name));
-                    } else {
-                      files.add(await http.MultipartFile.fromPath('photo', pickedFile!.path));
-                    }
-                  }
+      builder: (context) => InventoryForm(
+        title: location == null ? 'Neuer Ablageort' : 'Ort bearbeiten',
+        initialName: location?.name,
+        initialPhotoUrl: location != null && location.photo.isNotEmpty 
+            ? widget.pb.files.getUrl(location.record, location.photo).toString() 
+            : null,
+        initialIcon: location?.iconName ?? 'shelves',
+        showIcons: true,
+        availableIcons: const ['shelves', 'door_sliding', 'home_repair_service'],
+        pb: widget.pb,
+        onSave: (name, quantity, imageFile, icon, labelId) async {
+          final data = {'name': name, 'icon': icon};
+          List<http.MultipartFile> files = [];
+          if (imageFile != null) {
+            if (kIsWeb) {
+              final bytes = await imageFile.readAsBytes();
+              files.add(http.MultipartFile.fromBytes('photo', bytes, filename: imageFile.name));
+            } else {
+              files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            }
+          }
 
-                  try {
-                    if (location == null) {
-                      data['room'] = widget.room.id;
-                      await widget.pb.collection('storage_locations').create(body: data, files: files);
-                    } else {
-                      await widget.pb.collection('storage_locations').update(location.id, body: data, files: files);
-                    }
-                    if (context.mounted) Navigator.pop(context);
-                    _refreshData();
-                  } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
-                }
-              },
-              child: const Text('Speichern'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showDeleteLocationConfirmDialog(BuildContext context, StorageLocation loc) {
-    showDialog(context: context, builder: (context) => AlertDialog(title: const Text('Ort löschen?'), content: Text('Soll "${loc.name}" wirklich gelöscht werden?'), actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-          TextButton(onPressed: () async {
-              final nav = Navigator.of(context);
-              await widget.pb.collection('storage_locations').delete(loc.id);
-              if (context.mounted) { nav.pop(); _refreshData(); }
-            }, child: const Text('Löschen', style: TextStyle(color: Colors.red))),
-        ],
+          try {
+            if (location == null) {
+              data['room'] = widget.room.id;
+              await widget.pb.collection('storage_locations').create(body: data, files: files);
+            } else {
+              await widget.pb.collection('storage_locations').update(location.id, body: data, files: files);
+            }
+            if (context.mounted) Navigator.pop(context);
+            _refreshData();
+          } catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          }
+        },
       ),
     );
   }
 
   void _showAddContainerDialog(BuildContext context, {InventoryContainer? container}) {
-    final controller = TextEditingController(text: container?.name);
-    String selectedIcon = container?.iconName ?? 'inventory_2';
-    String currentLabelId = container?.labelId ?? '';
-    XFile? pickedFile;
-
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-          title: Text(container == null ? 'Neuer Container' : 'Bearbeiten'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () async {
-                      showModalBottomSheet(
-                        context: context,
-                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
-                        builder: (bottomSheetContext) => SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildSourceOption(context, Icons.photo_camera, 'Kamera', () async {
-                                  Navigator.pop(bottomSheetContext);
-                                  final picker = ImagePicker();
-                                  final file = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
-                                  if (file != null) setState(() => pickedFile = file);
-                                }),
-                                _buildSourceOption(context, Icons.photo_library, 'Galerie', () async {
-                                  Navigator.pop(bottomSheetContext);
-                                  final picker = ImagePicker();
-                                  final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
-                                  if (file != null) setState(() => pickedFile = file);
-                                }),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      height: 140, width: double.infinity,
-                      decoration: BoxDecoration(color: Colors.grey.withAlpha(20), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.withAlpha(40))),
-                      child: pickedFile != null
-                          ? ClipRRect(borderRadius: BorderRadius.circular(24), child: kIsWeb ? Image.network(pickedFile!.path, fit: BoxFit.cover) : Image.file(io.File(pickedFile!.path), fit: BoxFit.cover))
-                          : (container?.photo.isNotEmpty == true && pickedFile == null)
-                              ? ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.network(widget.pb.files.getUrl(container!.record, container.photo).toString(), fit: BoxFit.cover))
-                              : Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo, color: Theme.of(context).colorScheme.primary), const Text('Foto hinzufügen', style: TextStyle(fontSize: 12))]),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16))))),
-                  const SizedBox(height: 12),
-                  Card(
-                    elevation: 0, color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(100), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: ListTile(dense: true, title: const Text('QR-Code'), subtitle: Text(currentLabelId.isEmpty ? 'Automatisch' : 'ID: $currentLabelId', overflow: TextOverflow.ellipsis),
-                      trailing: IconButton(icon: Icon(currentLabelId.isEmpty ? Icons.qr_code_scanner : Icons.clear),
-                        onPressed: () async {
-                          if (currentLabelId.isEmpty) {
-                            final scannedId = await Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb, isAssigningMode: true)));
-                            if (scannedId != null) setState(() => currentLabelId = scannedId);
-                          } else { setState(() => currentLabelId = ''); }
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(spacing: 8, runSpacing: 8, children: iconMapping.entries.map((e) => GestureDetector(
-                      onTap: () => setState(() => selectedIcon = e.key),
-                      child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondaryContainer : null, border: Border.all(color: selectedIcon == e.key ? Theme.of(context).colorScheme.secondary : Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-                        child: Icon(e.value, size: 22),
-                      ),
-                    )).toList(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-            FilledButton(
-              onPressed: () async {
-                if (controller.text.isNotEmpty) {
-                  final Map<String, dynamic> data = {
-                    'name': controller.text, 'icon': selectedIcon,
-                    'labelId': currentLabelId.isEmpty ? null : currentLabelId,
-                  };
-                  if (widget.storageLocation != null) data['storage_location'] = widget.storageLocation!.id;
+      builder: (context) => InventoryForm(
+        title: container == null ? 'Neuer Container' : 'Bearbeiten',
+        initialName: container?.name,
+        initialPhotoUrl: container != null && container.photo.isNotEmpty 
+            ? widget.pb.files.getUrl(container.record, container.photo).toString() 
+            : null,
+        initialIcon: container?.iconName ?? 'inventory_2',
+        initialLabelId: container?.labelId,
+        showIcons: true,
+        showQrScanner: true,
+        availableIcons: iconMapping.keys.toList(),
+        pb: widget.pb,
+        onSave: (name, quantity, imageFile, icon, labelId) async {
+          final Map<String, dynamic> data = {
+            'name': name, 
+            'icon': icon,
+            'labelId': labelId.isEmpty ? null : labelId,
+          };
+          if (widget.storageLocation != null) data['storage_location'] = widget.storageLocation!.id;
 
-                  List<http.MultipartFile> files = [];
-                  if (pickedFile != null) {
-                    if (kIsWeb) {
-                      final bytes = await pickedFile!.readAsBytes();
-                      files.add(http.MultipartFile.fromBytes('photo', bytes, filename: pickedFile!.name));
-                    } else {
-                      files.add(await http.MultipartFile.fromPath('photo', pickedFile!.path));
-                    }
-                  }
-                  try {
-                    if (container == null) {
-                      data['room'] = widget.room.id;
-                      await widget.pb.collection('containers').create(body: data, files: files);
-                    } else {
-                      await widget.pb.collection('containers').update(container.id, body: data, files: files);
-                    }
-                    if (context.mounted) Navigator.pop(context);
-                    _refreshData();
-                  } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
-                }
-              },
-              child: const Text('Speichern'),
-            ),
-          ],
-        ),
+          List<http.MultipartFile> files = [];
+          if (imageFile != null) {
+            if (kIsWeb) {
+              final bytes = await imageFile.readAsBytes();
+              files.add(http.MultipartFile.fromBytes('photo', bytes, filename: imageFile.name));
+            } else {
+              files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            }
+          }
+
+          try {
+            if (container == null) {
+              data['room'] = widget.room.id;
+              await widget.pb.collection('containers').create(body: data, files: files);
+            } else {
+              await widget.pb.collection('containers').update(container.id, body: data, files: files);
+            }
+            if (context.mounted) Navigator.pop(context);
+            _refreshData();
+          } catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          }
+        },
       ),
     );
   }

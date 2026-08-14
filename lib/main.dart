@@ -60,15 +60,36 @@ class HomeInventoryApp extends StatelessWidget {
           // Dunkles Theme
           darkTheme: ThemeData(
             useMaterial3: true,
+            brightness: Brightness.dark,
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color(0xFF3F51B5),
               brightness: Brightness.dark,
+              surface: const Color(0xFF1A1C1E),
+              onSurface: Colors.white,
             ),
-            textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
+            scaffoldBackgroundColor: const Color(0xFF1A1C1E),
+            drawerTheme: const DrawerThemeData(
+              backgroundColor: Color(0xFF1A1C1E),
+              surfaceTintColor: Colors.transparent,
+            ),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme).copyWith(
+              titleLarge: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+              bodyMedium: const TextStyle(color: Colors.white70),
+            ),
             cardTheme: CardThemeData(
               elevation: 0,
-              color: const Color(0xFF1E1E26),
+              color: const Color(0xFF2D2F36),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+            ),
+            floatingActionButtonTheme: FloatingActionButtonThemeData(
+              backgroundColor: const Color(0xFF3F51B5),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
           ),
           home: isLoggedIn ? RoomListScreen(pb: pb) : LoginScreen(pb: pb),

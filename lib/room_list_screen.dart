@@ -6,7 +6,8 @@ import 'item_list_screen.dart';
 import 'scanner_screen.dart';
 import 'bulk_qr_print_screen.dart';
 import 'user_profile_screen.dart';
-import 'global_search_screen.dart'; // Import hinzugefügt
+import 'global_search_screen.dart';
+import 'inventory_form.dart'; 
 
 class RoomListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -72,6 +73,8 @@ class _RoomListScreenState extends State<RoomListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       drawer: _buildDrawer(context),
       body: Container(
@@ -80,7 +83,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).colorScheme.primary.withAlpha(20),
+              Theme.of(context).colorScheme.primary.withAlpha(isDark ? 40 : 20),
               Theme.of(context).scaffoldBackgroundColor,
             ],
           ),
@@ -229,34 +232,54 @@ class _RoomListScreenState extends State<RoomListScreen> {
   }
 
   Widget _buildDrawer(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return NavigationDrawer(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).drawerTheme.backgroundColor,
+      surfaceTintColor: Colors.transparent,
       children: [
-        const DrawerHeader(
+        DrawerHeader(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black12, width: 1)),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Text('Heiminventar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              Text('Modern & Strukturiert'),
+              Text(
+                'Heiminventar', 
+                style: TextStyle(
+                  fontSize: 24, 
+                  fontWeight: FontWeight.bold, 
+                  color: isDark ? Colors.white : Colors.black87
+                )
+              ),
+              Text(
+                'Modern & Strukturiert',
+                style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+              ),
             ],
           ),
         ),
+        const SizedBox(height: 12),
         NavigationDrawerDestination(
-          icon: const Icon(Icons.dashboard_outlined),
+          icon: Icon(Icons.dashboard_outlined, color: isDark ? Colors.white70 : null),
           selectedIcon: const Icon(Icons.dashboard),
-          label: const Text('Übersicht'),
+          label: Text('Übersicht', style: TextStyle(color: isDark ? Colors.white : null)),
         ),
         NavigationDrawerDestination(
-          icon: const Icon(Icons.print_outlined),
-          label: const Text('Etiketten'),
+          icon: Icon(Icons.print_outlined, color: isDark ? Colors.white70 : null),
+          label: Text('Etiketten', style: TextStyle(color: isDark ? Colors.white : null)),
         ),
         NavigationDrawerDestination(
-          icon: const Icon(Icons.person_outline),
-          label: const Text('Profil & Sicherheit'),
+          icon: Icon(Icons.person_outline, color: isDark ? Colors.white70 : null),
+          label: Text('Profil & Sicherheit', style: TextStyle(color: isDark ? Colors.white : null)),
         ),
-        const Divider(),
-        const AboutListTile(icon: Icon(Icons.info_outline), applicationName: 'Heiminventarisierung'),
+        const Divider(indent: 16, endIndent: 16),
+        AboutListTile(
+          icon: Icon(Icons.info_outline, color: isDark ? Colors.white70 : null), 
+          applicationName: 'Heiminventarisierung',
+          child: Text('Über die App', style: TextStyle(color: isDark ? Colors.white : null)),
+        ),
       ],
       onDestinationSelected: (index) {
         Navigator.pop(context);
@@ -270,11 +293,12 @@ class _RoomListScreenState extends State<RoomListScreen> {
   }
 
   Widget _buildSpecialTile(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
         color: _unassignedItemCount > 0 
             ? Theme.of(context).colorScheme.primary 
-            : Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(150),
+            : (isDark ? Colors.white10 : Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(150)),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           if (_unassignedItemCount > 0)
@@ -290,7 +314,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
         title: Text(
           'Ohne Zuordnung', 
           style: TextStyle(
-            color: _unassignedItemCount > 0 ? Colors.white : Colors.black87, 
+            color: _unassignedItemCount > 0 || isDark ? Colors.white : Colors.black87, 
             fontWeight: FontWeight.bold, 
             fontSize: 18
           )
@@ -300,18 +324,18 @@ class _RoomListScreenState extends State<RoomListScreen> {
               ? '$_unassignedItemCount Artikel warten auf einen Platz' 
               : 'Alles perfekt einsortiert!',
           style: TextStyle(
-            color: _unassignedItemCount > 0 ? Colors.white70 : Colors.black54,
+            color: _unassignedItemCount > 0 || isDark ? Colors.white70 : Colors.black54,
           )
         ),
         trailing: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: _unassignedItemCount > 0 ? Colors.white24 : Colors.black12, 
+            color: _unassignedItemCount > 0 || isDark ? Colors.white24 : Colors.black12, 
             shape: BoxShape.circle
           ),
           child: Icon(
             _unassignedItemCount > 0 ? Icons.arrow_forward : Icons.check, 
-            color: _unassignedItemCount > 0 ? Colors.white : Colors.black54
+            color: _unassignedItemCount > 0 || isDark ? Colors.white : Colors.black54
           ),
         ),
         onTap: () async {
@@ -333,16 +357,19 @@ class _RoomListScreenState extends State<RoomListScreen> {
       subtitle = '$locationCount Orte · $containerCount Container';
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(10),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          )
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withAlpha(10),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            )
         ],
       ),
       child: Material(
@@ -383,9 +410,9 @@ class _RoomListScreenState extends State<RoomListScreen> {
                   ],
                 ),
                 const Spacer(),
-                Text(room.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                Text(room.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)),
                 const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontWeight: FontWeight.w600, fontSize: 12)),
+                Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(180), fontWeight: FontWeight.w600, fontSize: 12)),
               ],
             ),
           ),
@@ -395,55 +422,29 @@ class _RoomListScreenState extends State<RoomListScreen> {
   }
 
   void _showAddRoomDialog(BuildContext context, {Room? room}) {
-    final controller = TextEditingController(text: room?.name);
-    String selectedIcon = room?.iconName ?? 'meeting_room';
-
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-          title: Text(room == null ? 'Neuer Raum' : 'Raum bearbeiten'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: controller, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16))))),
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: iconMapping.entries.map((e) => GestureDetector(
-                    onTap: () => setState(() => selectedIcon = e.key),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: selectedIcon == e.key ? Theme.of(context).colorScheme.primary : Colors.grey.withAlpha(20),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(e.value, color: selectedIcon == e.key ? Colors.white : Colors.black54),
-                    ),
-                  )).toList(),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-            FilledButton(
-              onPressed: () async {
-                if (controller.text.isNotEmpty) {
-                  final data = {'name': controller.text, 'icon': selectedIcon};
-                  if (room == null) await widget.pb.collection('rooms').create(body: data);
-                  else await widget.pb.collection('rooms').update(room.id, body: data);
-                  if (context.mounted) Navigator.pop(context);
-                  _refreshRooms();
-                }
-              },
-              child: const Text('Speichern'),
-            ),
-          ],
-        ),
+      builder: (context) => InventoryForm(
+        title: room == null ? 'Neuer Raum' : 'Raum bearbeiten',
+        initialName: room?.name,
+        initialIcon: room?.iconName ?? 'meeting_room',
+        showIcons: true,
+        availableIcons: const ['meeting_room', 'kitchen', 'garage', 'weekend', 'bed', 'build', 'warehouse', 'deck'],
+        pb: widget.pb,
+        onSave: (name, quantity, imageFile, icon, labelId) async {
+          final data = {'name': name, 'icon': icon};
+          try {
+            if (room == null) {
+              await widget.pb.collection('rooms').create(body: data);
+            } else {
+              await widget.pb.collection('rooms').update(room.id, body: data);
+            }
+            if (context.mounted) Navigator.pop(context);
+            _refreshRooms();
+          } catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          }
+        },
       ),
     );
   }

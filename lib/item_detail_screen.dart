@@ -8,6 +8,7 @@ import 'dart:io' as io;
 import 'models.dart';
 import 'move_item_screen.dart';
 import 'qr_display_screen.dart';
+import 'inventory_form.dart'; // Import hinzugefügt
 
 class ItemDetailScreen extends StatefulWidget {
   final Item item;
@@ -93,8 +94,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       }
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -109,7 +112,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   imageUrl.isNotEmpty
                       ? CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover)
                       : Container(
-                          color: Theme.of(context).colorScheme.primary.withAlpha(50),
+                          color: Theme.of(context).colorScheme.primary.withAlpha(isDark ? 40 : 50),
                           child: const Icon(Icons.inventory_2_outlined, size: 80, color: Colors.white54),
                         ),
                   if (_isUploading)
@@ -158,9 +161,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardTheme.color,
                       borderRadius: BorderRadius.circular(32),
-                      boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
+                      boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
                     ),
                     child: Column(
                       children: [
@@ -231,37 +234,51 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   void _showEditItemDialog() {
-    final nameController = TextEditingController(text: _currentName);
-    final quantityController = TextEditingController(text: _currentQuantity.toString());
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-        title: const Text('Gegenstand bearbeiten'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16))))),
-            const SizedBox(height: 16),
-            TextField(controller: quantityController, decoration: const InputDecoration(labelText: 'Anzahl', border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16)))), keyboardType: TextInputType.number),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-          FilledButton(
-            onPressed: () async {
-              final newName = nameController.text.trim();
-              final newQuantity = int.tryParse(quantityController.text) ?? _currentQuantity;
-              if (newName.isNotEmpty) {
-                await widget.pb.collection('items').update(widget.item.id, body: {'name': newName, 'quantity': newQuantity});
-                setState(() { _currentName = newName; _currentQuantity = newQuantity; });
-                if (mounted) Navigator.pop(context);
-              }
-            },
-            child: const Text('Speichern'),
-          ),
-        ],
+      builder: (context) => InventoryForm(
+        title: 'Gegenstand bearbeiten',
+        initialName: _currentName,
+        initialQuantity: _currentQuantity,
+        initialPhotoUrl: _currentPhoto.isNotEmpty 
+            ? widget.pb.files.getUrl(widget.item.record!, _currentPhoto).toString() 
+            : null,
+        showQuantity: true,
+        pb: widget.pb,
+        onSave: (name, quantity, imageFile, icon, labelId) async {
+          final Map<String, dynamic> body = {
+            'name': name,
+            'quantity': quantity,
+          };
+
+          List<http.MultipartFile> files = [];
+          if (imageFile != null) {
+            if (kIsWeb) {
+              final bytes = await imageFile.readAsBytes();
+              files.add(http.MultipartFile.fromBytes('photo', bytes, filename: imageFile.name));
+            } else {
+              files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            }
+          }
+
+          try {
+            final updatedRecord = await widget.pb.collection('items').update(
+              widget.item.id,
+              body: body,
+              files: files,
+            );
+            
+            setState(() {
+              _currentName = name;
+              _currentQuantity = quantity;
+              _currentPhoto = updatedRecord.getStringValue('photo');
+            });
+            
+            if (context.mounted) Navigator.pop(context);
+          } catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          }
+        },
       ),
     );
   }
