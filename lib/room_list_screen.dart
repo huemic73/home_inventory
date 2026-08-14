@@ -274,7 +274,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
       decoration: BoxDecoration(
         color: _unassignedItemCount > 0 
             ? Theme.of(context).colorScheme.primary 
-            : Theme.of(context).colorScheme.surfaceVariant.withAlpha(150),
+            : Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(150),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           if (_unassignedItemCount > 0)

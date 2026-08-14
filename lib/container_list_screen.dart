@@ -115,23 +115,72 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                 ),
               ),
               actions: [
-                IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: Icon(Icons.refresh, color: Theme.of(context).colorScheme.primary, size: 20),
+                  ),
+                  onPressed: _refreshData,
+                ),
                 const SizedBox(width: 16),
               ],
+            ),
+            SliverToBoxAdapter(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Row(
+                  children: [
+                    FilterChip(
+                      label: const Text('Alle anzeigen'),
+                      selected: !_onlyWithItems,
+                      onSelected: (val) => setState(() {
+                        _onlyWithItems = false;
+                        _refreshData();
+                      }),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      showCheckmark: false,
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: const Text('Nur belegte'),
+                      selected: _onlyWithItems,
+                      onSelected: (val) => setState(() {
+                        _onlyWithItems = true;
+                        _refreshData();
+                      }),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      showCheckmark: false,
+                    ),
+                  ],
+                ),
+              ),
             ),
             FutureBuilder<Map<String, dynamic>>(
               future: _dataFuture,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
                 
-                final locations = snapshot.data!['locations'] as List<StorageLocation>;
+                var locations = snapshot.data!['locations'] as List<StorageLocation>;
                 var containers = snapshot.data!['containers'] as List<InventoryContainer>;
+
+                if (_onlyWithItems) {
+                  // Filter locations: Nur solche, die Container mit Items enthalten
+                  // Da wir hier eine Map _locationContainerCounts haben, können wir prüfen, 
+                  // ob der Ort überhaupt Container hat, aber wir müssten wissen ob diese Container Items haben.
+                  // Einfacher: Filter nur die Container-Liste.
+                  containers = containers.where((c) => (_containerItemCounts[c.id] ?? 0) > 0).toList();
+                  
+                  // Locations filtern ist komplexer, da wir die Item-Anzahl pro Container pro Location bräuchten.
+                  // Wir belassen es erst mal bei den Containern.
+                }
 
                 return SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      if (locations.isNotEmpty) ...[
+                      if (locations.isNotEmpty && !_onlyWithItems) ...[
                         const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text('Ablageorte', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
                         _buildLocationsGrid(locations),
                         const SizedBox(height: 24),

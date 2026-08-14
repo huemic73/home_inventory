@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
+import 'main.dart'; // Import für themeNotifier
 
 class UserProfileScreen extends StatefulWidget {
   final PocketBase pb;
@@ -30,6 +32,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       MaterialPageRoute(builder: (context) => LoginScreen(pb: widget.pb)),
       (route) => false,
     );
+  }
+
+  Future<void> _updateTheme(ThemeMode mode) async {
+    themeNotifier.value = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('themeMode', mode.index);
   }
 
   Future<void> _changePassword() async {
@@ -77,7 +85,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final email = user is RecordModel ? user.getStringValue('email') : 'Benutzer';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -92,7 +100,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardTheme.color,
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
               ),
@@ -118,13 +126,37 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ),
             
             const SizedBox(height: 32),
+            const Text('Erscheinungsbild', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardTheme.color,
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: ValueListenableBuilder<ThemeMode>(
+                valueListenable: themeNotifier,
+                builder: (context, currentMode, _) {
+                  return Column(
+                    children: [
+                      _buildThemeOption(Icons.brightness_auto, 'Systemstandard', ThemeMode.system, currentMode),
+                      _buildThemeOption(Icons.light_mode_outlined, 'Hell', ThemeMode.light, currentMode),
+                      _buildThemeOption(Icons.dark_mode_outlined, 'Dunkel', ThemeMode.dark, currentMode),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 32),
             const Text('Passwort ändern', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardTheme.color,
                 borderRadius: BorderRadius.circular(32),
               ),
               child: Column(
@@ -169,6 +201,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
+  Widget _buildThemeOption(IconData icon, String label, ThemeMode mode, ThemeMode currentMode) {
+    final isSelected = currentMode == mode;
+    return ListTile(
+      leading: Icon(icon, color: isSelected ? Theme.of(context).colorScheme.primary : null),
+      title: Text(label, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : null)),
+      trailing: isSelected ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      onTap: () => _updateTheme(mode),
+    );
+  }
+
   Widget _buildPasswordField(TextEditingController controller, String label) {
     return TextField(
       controller: controller,
@@ -176,7 +219,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       decoration: InputDecoration(
         labelText: label,
         filled: true,
-        fillColor: const Color(0xFFF8F9FE),
+        fillColor: Theme.of(context).scaffoldBackgroundColor,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
       ),
     );
