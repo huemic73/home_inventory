@@ -5,7 +5,8 @@ import 'container_list_screen.dart';
 import 'item_list_screen.dart';
 import 'scanner_screen.dart';
 import 'bulk_qr_print_screen.dart';
-import 'user_profile_screen.dart'; // Import hinzugefügt
+import 'user_profile_screen.dart';
+import 'global_search_screen.dart'; // Import hinzugefügt
 
 class RoomListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -134,7 +135,10 @@ class _RoomListScreenState extends State<RoomListScreen> {
                     ),
                     child: Icon(Icons.search, color: Theme.of(context).colorScheme.primary, size: 20),
                   ),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb))),
+                  onPressed: () => Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb))
+                  ),
                 ),
                 const SizedBox(width: 16),
               ],
