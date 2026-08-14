@@ -6,7 +6,7 @@ import 'models.dart';
 import 'scanner_screen.dart';
 import 'package:pocketbase/pocketbase.dart';
 
-/// Zentrales Floating Action Button Objekt für die App
+/// Zentrales Floating Action Button Objekt
 class StandardFab extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -27,20 +27,191 @@ class StandardFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return FloatingActionButton.extended(
       heroTag: heroTag,
       onPressed: onPressed,
       icon: Icon(icon),
       label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-      backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.primary,
-      foregroundColor: foregroundColor ?? Theme.of(context).colorScheme.onPrimary,
+      backgroundColor: backgroundColor ?? (isDark ? const Color(0xFF9FA8DA) : Theme.of(context).colorScheme.primary),
+      foregroundColor: foregroundColor ?? (isDark ? const Color(0xFF1A1C1E) : Colors.white),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 2,
     );
   }
 }
 
-/// Zentrales Formular-Objekt für alle Eingaben (Räume, Orte, Container, Artikel)
+/// Das Master-Layout für alle Übersichtsseiten (Räume, Orte, Container)
+class InventoryPageLayout extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final String? imageUrl;
+  final List<Widget>? actions;
+  final Widget? drawer;
+  final List<Widget>? filterChips;
+  final String? sectionTitle;
+  final Widget body; // Erwartet Sliver-Widgets oder eine Liste von Slivern
+  final Widget? floatingActionButton;
+
+  const InventoryPageLayout({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.imageUrl,
+    this.actions,
+    this.drawer,
+    this.filterChips,
+    this.sectionTitle,
+    required this.body,
+    this.floatingActionButton,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasHeaderImage = imageUrl != null && imageUrl!.isNotEmpty;
+
+    return Scaffold(
+      drawer: drawer,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.primary.withAlpha(isDark ? 40 : 20),
+              Theme.of(context).scaffoldBackgroundColor,
+            ],
+          ),
+        ),
+        child: CustomScrollView(
+          slivers: [
+            // 1. Die AppBar (Header)
+            SliverAppBar(
+              expandedHeight: hasHeaderImage ? 250 : 140,
+              pinned: true,
+              elevation: 0,
+              backgroundColor: isDark ? Colors.black26 : Colors.transparent,
+              foregroundColor: hasHeaderImage || isDark ? Colors.white : Colors.black87,
+              actions: actions,
+              flexibleSpace: FlexibleSpaceBar(
+                background: hasHeaderImage 
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(imageUrl!, fit: BoxFit.cover),
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.black54, Colors.transparent, Colors.black87],
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : null,
+                titlePadding: const EdgeInsetsDirectional.only(start: 64, bottom: 16, end: 16),
+                title: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        color: hasHeaderImage || isDark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: hasHeaderImage || isDark ? Colors.white70 : Theme.of(context).colorScheme.primary.withAlpha(150),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 2. Die Sticky-Zone (Filter & Titel)
+            if (filterChips != null || sectionTitle != null)
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickyHeaderDelegate(
+                  isDark: isDark,
+                  child: Container(
+                    color: Theme.of(context).scaffoldBackgroundColor.withAlpha(240),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (filterChips != null)
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(children: filterChips!),
+                          ),
+                        if (filterChips != null && sectionTitle != null) const SizedBox(height: 12),
+                        if (sectionTitle != null)
+                          Text(
+                            sectionTitle!,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // 3. Der eigentliche Inhalt
+            body,
+
+            // Puffer unten
+            const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          ],
+        ),
+      ),
+      floatingActionButton: floatingActionButton,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+}
+
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final bool isDark;
+
+  _StickyHeaderDelegate({required this.child, required this.isDark});
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          if (shrinkOffset > 0)
+            BoxShadow(color: Colors.black.withAlpha(isDark ? 40 : 10), blurRadius: 10, offset: const Offset(0, 4))
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  @override
+  double get maxExtent => 100.0; // Muss dynamisch berechnet werden, hier fest für Filter + Titel
+  @override
+  double get minExtent => 100.0;
+  @override
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) => true;
+}
+
+/// Zentrales Formular-Objekt für alle Eingaben
 class InventoryForm extends StatefulWidget {
   final String title;
   final String? initialName;
@@ -155,7 +326,6 @@ class _InventoryFormState extends State<InventoryForm> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Foto-Sektion
               GestureDetector(
                 onTap: _pickImage,
                 child: Container(
@@ -202,7 +372,6 @@ class _InventoryFormState extends State<InventoryForm> {
               ),
               const SizedBox(height: 32),
               
-              // Name Feld
               _buildFormTextField(
                 controller: _nameController,
                 label: 'Name',

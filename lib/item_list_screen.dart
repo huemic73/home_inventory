@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'item_detail_screen.dart';
 import 'pick_unassigned_items_screen.dart';
-
 import 'qr_display_screen.dart'; 
 import 'ui_components.dart';
 
@@ -13,7 +12,7 @@ class ItemListScreen extends StatefulWidget {
   final PocketBase pb;
   final InventoryContainer? container;
   final Room? room;
-  final StorageLocation? storageLocation; // Neu: Für die volle Pfadanzeige
+  final StorageLocation? storageLocation;
   final bool onlyUnassigned;
 
   const ItemListScreen({
@@ -58,7 +57,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
     final records = await widget.pb.collection('items').getFullList(
       filter: filters.isEmpty ? null : filters.join(' && '),
       sort: '-created',
-      expand: 'container,container.room,container.storage_location', // Alles expandieren
+      expand: 'container,container.room,container.storage_location',
     );
     return records.map((record) => Item.fromRecord(record)).toList();
   }
@@ -84,186 +83,58 @@ class _ItemListScreenState extends State<ItemListScreen> {
       title = 'Ohne Zuordnung';
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: containerImageUrl != null ? 250 : 160,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Colors.white,
-            actions: [
-              if (widget.container != null)
-                IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: containerImageUrl != null ? Colors.white24 : (isDark ? Colors.white10 : Colors.white),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        if (containerImageUrl == null && !isDark)
-                          BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 10)
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.qr_code, 
-                      color: containerImageUrl != null || isDark ? Colors.white : Theme.of(context).colorScheme.primary, 
-                      size: 20
-                    ),
-                  ),
-                  tooltip: 'Box QR-Code anzeigen',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => QrDisplayScreen(container: widget.container!)),
-                  ),
-                ),
-              const SizedBox(width: 16),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: containerImageUrl != null
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.network(containerImageUrl, fit: BoxFit.cover),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Colors.black54, Colors.transparent, Colors.black87],
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Theme.of(context).colorScheme.primary.withAlpha(isDark ? 40 : 20),
-                            Theme.of(context).scaffoldBackgroundColor,
-                          ],
-                        ),
-                      ),
-                    ),
-              titlePadding: const EdgeInsetsDirectional.only(start: 64, bottom: 16, end: 16),
-              title: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white70,
-                      ),
-                    ),
-                ],
-              ),
-            ),
+    return InventoryPageLayout(
+      title: title,
+      subtitle: subtitle,
+      imageUrl: containerImageUrl,
+      actions: [
+        if (widget.container != null)
+          IconButton(
+            icon: const Icon(Icons.qr_code),
+            tooltip: 'Box QR-Code anzeigen',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => QrDisplayScreen(container: widget.container!))),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-              child: Row(
-                children: [
-                  Text(
-                    'Inhalt der Box',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  FutureBuilder<List<Item>>(
-                    future: _itemsFuture,
-                    builder: (context, snapshot) {
-                      final count = snapshot.data?.length ?? 0;
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withAlpha(30),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '$count Artikel',
-                          style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 11),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
+        const SizedBox(width: 16),
+      ],
+      filterChips: [
+        Expanded(
+          child: SearchBar(
+            controller: _searchController,
+            hintText: 'In dieser Box suchen...',
+            leading: const Icon(Icons.search, size: 20),
+            elevation: WidgetStateProperty.all(0),
+            backgroundColor: WidgetStateProperty.all(Theme.of(context).cardTheme.color),
+            shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+            onChanged: (val) {
+              setState(() => _searchQuery = val.trim());
+              _refreshItems();
+            },
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: SearchBar(
-                controller: _searchController,
-                hintText: 'Im Inhalt suchen...',
-                leading: const Icon(Icons.search, size: 20),
-                elevation: WidgetStateProperty.all(0),
-                backgroundColor: WidgetStateProperty.all(Theme.of(context).cardTheme.color),
-                shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                onChanged: (val) {
-                  setState(() => _searchQuery = val.trim());
-                  _refreshItems();
-                },
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(24),
-            sliver: FutureBuilder<List<Item>>(
-              future: _itemsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
-                }
-                final items = snapshot.data ?? [];
-                if (items.isEmpty) {
-                  return const SliverToBoxAdapter(
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 40),
-                        child: Text('Diese Box ist momentan leer.'),
-                      ),
-                    ),
-                  );
-                }
-
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildItemCard(context, items[index]),
-                    ),
-                    childCount: items.length,
-                  ),
-                );
-              },
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 150)),
-        ],
-      ),
+        ),
+      ],
+      sectionTitle: 'Inhalt der Box',
       floatingActionButton: _buildFab(context),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      body: FutureBuilder<List<Item>>(
+        future: _itemsFuture,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
+          final items = snapshot.data!;
+          if (items.isEmpty) return const SliverFillRemaining(child: Center(child: Text('Diese Box ist momentan leer.')));
+
+          return SliverPadding(
+            padding: const EdgeInsets.all(24),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildItemCard(context, items[index]),
+                ),
+                childCount: items.length,
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -275,25 +146,15 @@ class _ItemListScreenState extends State<ItemListScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
+      decoration: BoxDecoration(color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(24), boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))]),
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
         leading: Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withAlpha(15),
-            borderRadius: BorderRadius.circular(16),
-          ),
+          width: 60, height: 60,
+          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(15), borderRadius: BorderRadius.circular(16)),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: imageUrl.isNotEmpty
-                ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
-                : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary.withAlpha(150)),
+            child: imageUrl.isNotEmpty ? Image.network(imageUrl, fit: BoxFit.cover) : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary.withAlpha(150)),
           ),
         ),
         title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -326,11 +187,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
           ),
           const SizedBox(height: 12),
         ],
-        StandardFab(
-          heroTag: 'add_new',
-          label: 'Artikel',
-          onPressed: () => _showAddItemDialog(context),
-        ),
+        StandardFab(heroTag: 'add_new', label: 'Artikel', onPressed: () => _showAddItemDialog(context)),
       ],
     );
   }
@@ -343,32 +200,18 @@ class _ItemListScreenState extends State<ItemListScreen> {
         showQuantity: true,
         pb: widget.pb,
         onSave: (name, quantity, imageFile, icon, labelId) async {
-          final Map<String, dynamic> body = {
-            'name': name,
-            'quantity': quantity,
-          };
-
-          if (widget.container != null) {
-            body['container'] = widget.container!.id;
-          }
-
+          final Map<String, dynamic> body = {'name': name, 'quantity': quantity};
+          if (widget.container != null) body['container'] = widget.container!.id;
           List<http.MultipartFile> files = [];
           if (imageFile != null) {
-            if (kIsWeb) {
-              final bytes = await imageFile.readAsBytes();
-              files.add(http.MultipartFile.fromBytes('photo', bytes, filename: imageFile.name));
-            } else {
-              files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
-            }
+            if (kIsWeb) files.add(http.MultipartFile.fromBytes('photo', await imageFile.readAsBytes(), filename: imageFile.name));
+            else files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
           }
-
           try {
             await widget.pb.collection('items').create(body: body, files: files);
             if (context.mounted) Navigator.pop(context);
             _refreshItems();
-          } catch (e) {
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
-          }
+          } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
         },
       ),
     );
