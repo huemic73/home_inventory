@@ -147,10 +147,13 @@ class InventoryPageLayout extends StatelessWidget {
                 pinned: true,
                 delegate: _StickyHeaderDelegate(
                   isDark: isDark,
+                  // Höhe dynamisch: 110 wenn beides da ist, sonst 70
+                  height: (filterChips != null && sectionTitle != null) ? 110 : 70,
                   child: Container(
                     color: Theme.of(context).scaffoldBackgroundColor.withAlpha(240),
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min, // Wichtig für korrekte Höhe
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (filterChips != null)
@@ -187,13 +190,15 @@ class InventoryPageLayout extends StatelessWidget {
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final bool isDark;
+  final double height;
 
-  _StickyHeaderDelegate({required this.child, required this.isDark});
+  _StickyHeaderDelegate({required this.child, required this.isDark, required this.height});
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
         boxShadow: [
           if (shrinkOffset > 0)
             BoxShadow(color: Colors.black.withAlpha(isDark ? 40 : 10), blurRadius: 10, offset: const Offset(0, 4))
@@ -204,11 +209,11 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => 100.0; // Muss dynamisch berechnet werden, hier fest für Filter + Titel
+  double get maxExtent => height;
   @override
-  double get minExtent => 100.0;
+  double get minExtent => height;
   @override
-  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) => true;
+  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) => height != oldDelegate.height;
 }
 
 /// Zentrales Formular-Objekt für alle Eingaben
