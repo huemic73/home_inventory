@@ -291,16 +291,15 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.storageLocation == null)
+        if (widget.storageLocation == null) ...[
           FloatingActionButton.extended(
             heroTag: 'add_loc',
             onPressed: () => _showAddLocationDialog(context),
-            icon: const Icon(Icons.shelves),
+            icon: const Icon(Icons.add),
             label: const Text('Ort'),
-            backgroundColor: Colors.white,
-            foregroundColor: Theme.of(context).colorScheme.primary,
           ),
-        const SizedBox(width: 12),
+          const SizedBox(width: 16),
+        ],
         FloatingActionButton.extended(
           heroTag: 'add_cont',
           onPressed: () => _showAddContainerDialog(context),
