@@ -14,15 +14,17 @@ Eine moderne, hierarchische Flutter-Anwendung zur Inventarverwaltung für zuhaus
   - **Label-Recycling:** Weise bereits gedruckten Etiketten erst beim Bekleben neue Container zu.
 - **Visuelle Erfassung:** Unterstützung für Fotos auf jeder Ebene (Ablageort, Container, Artikel) via Kamera oder Galerie.
 - **Globale Suche:** Blitzschnelle Suche über das gesamte Inventar mit Pfadanzeige (z.B. *Keller > Regal A > Blaue Box*).
-- **Inventurhilfe:** Generiere strukturierte PDF-Listen aller Container, gruppiert nach Räumen, inklusive QR-Codes zum Abhaken.
+- **Inventurhilfe:** Generiere strukturierte PDF-Listen aller Container, gruppiert nach Räumen und Orten, inklusive QR-Codes.
 - **Benutzerverwaltung:** Sicherer Login-Bereich mit Profilverwaltung und Passwort-Änderung.
-- **Modernes Design:** "Modern Blue" Theme basierend auf Material 3 mit der Schriftart "Outfit".
+- **Theme-Support:** Volle Unterstützung für **Light Mode**, **Dark Mode** und Systemstandard (persistente Speicherung).
+- **Modernes Design:** "Modern Blue" Theme (Indigo-Akzente) mit der Schriftart "Outfit" und vereinheitlichten UI-Komponenten.
 
 ## 🛠 Tech-Stack
 
 - **Frontend:** Flutter (Material 3)
 - **Backend:** [PocketBase](https://pocketbase.io) (Self-hosted Go/SQLite)
 - **Schlüssel-Pakete:** 
+  - `shared_preferences` (Theme-Speicherung)
   - `mobile_scanner` (QR-Erkennung)
   - `printing` & `pdf` (Label-Generierung)
   - `image_picker` (Foto-Management)
@@ -53,21 +55,10 @@ Eine moderne, hierarchische Flutter-Anwendung zur Inventarverwaltung für zuhaus
 
 1. Klone das Repository.
 2. Installiere die Abhängigkeiten: `flutter pub get`.
-3. **Netzwerk:** Für die Nutzung auf echten Android-Geräten (z.B. Pixel 9) muss in `lib/main.dart` die Variable `pcIp` auf die aktuelle lokale IPv4-Adresse deines PCs gesetzt werden (via `ipconfig`).
-4. **Build:**
-   - Web: `flutter run -d chrome`
-   - Android: `flutter run` (erfordert minSdk 21)
+3. **Netzwerk:** In `lib/main.dart` die Variable `pcIp` auf die lokale IPv4-Adresse deines PCs setzen.
+4. **Build:** `flutter run` (erfordert minSdk 21).
 
 ---
 
-## 📖 Bedienung
-
-1. **Struktur aufbauen:** Lege Räume an, füge bei Bedarf Ablageorte (Regale) hinzu und erstelle darin Container.
-2. **QR-Labels:** Nutze die Funktion "Etiketten drucken" im Seitenmenü, um eine Inventurliste oder Aufkleber zu generieren.
-3. **Zuweisung:** Klebe einen QR-Code auf eine neue Box, wähle in der App "Zuweisen" und scanne den Code – die Box ist nun digital verknüpft.
-4. **Suchen & Finden:** Nutze die Lupe auf der Startseite, um Gegenstände sofort zu lokalisieren.
-
----
-
-## 🐳 Docker Deployment (Geplant)
-Die Anwendung ist darauf ausgelegt, als Docker-Container zu laufen. Die Flutter-Web-App kann direkt im `pb_public` Ordner von PocketBase mitserviert werden, um Datenbank und Frontend in einem einzigen Container zu vereinen.
+## 🏗 Architektur-Hinweis
+Die App nutzt ein **Component-based Design**. Zentrale UI-Elemente wie Buttons (`StandardFab`) und Eingabemasken (`InventoryForm`) sind in `lib/ui_components.dart` definiert, was für eine absolut konsistente Benutzeroberfläche und einfache Wartbarkeit sorgt.

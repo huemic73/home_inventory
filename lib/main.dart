@@ -66,6 +66,11 @@ class HomeInventoryApp extends StatelessWidget {
               brightness: Brightness.dark,
               surface: const Color(0xFF1A1C1E),
               onSurface: Colors.white,
+              // Hellere Indigo-Töne für den Dark Mode
+              primary: const Color(0xFF9FA8DA), 
+              onPrimary: const Color(0xFF1A1C1E),
+              primaryContainer: const Color(0xFF3F51B5).withAlpha(100),
+              onPrimaryContainer: Colors.white,
             ),
             scaffoldBackgroundColor: const Color(0xFF1A1C1E),
             drawerTheme: const DrawerThemeData(
@@ -87,8 +92,6 @@ class HomeInventoryApp extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
             ),
             floatingActionButtonTheme: FloatingActionButtonThemeData(
-              backgroundColor: const Color(0xFF3F51B5),
-              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
           ),

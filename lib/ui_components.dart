@@ -33,7 +33,7 @@ class StandardFab extends StatelessWidget {
       icon: Icon(icon),
       label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
       backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.primary,
-      foregroundColor: foregroundColor ?? Colors.white,
+      foregroundColor: foregroundColor ?? Theme.of(context).colorScheme.onPrimary,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 2,
     );
