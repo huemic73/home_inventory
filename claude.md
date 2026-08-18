@@ -34,5 +34,6 @@ Entwicklung einer modernen, hierarchischen Inventarverwaltung. Fokus auf Schnell
 
 ## 🚦 Aktueller Status
 - **Status:** Funktionsfähig & Hochgradig optimiert.
+- **Vision:** Eine Roadmap für zukünftige Architektur-Änderungen (Rekursion, Bestandsführung) wurde in `ROADMAP.md` hinterlegt. Sobald Teile davon umgesetzt werden, muss die Datei entsprechend aktualisiert (Punkte entfernt oder als erledigt markiert) werden.
 - **Highlights:** Biometrischer Login, persistente Sitzungen, vollautomatischer Dark-Mode-Support, einheitliche Layouts über alle Screens hinweg.
 - **Wartbarkeit:** Alle UI-Schrauben sind in `ui_components.dart` zentralisiert. Die gesamte App folgt dem Material 3 Design-Standard (inklusive neuester Container-Farbnamen wie `surfaceContainerHighest`).
