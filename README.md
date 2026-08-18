@@ -18,13 +18,19 @@ Eine moderne, hierarchische Flutter-Anwendung zur Inventarverwaltung für zuhaus
 - **Inventurhilfe:** Generiere strukturierte PDF-Listen aller Container, gruppiert nach Standorten, inklusive QR-Codes.
 - **Benutzerverwaltung:** Sicherer Login-Bereich mit Profilverwaltung und Passwort-Änderung.
 - **Theme-Support:** Volle Unterstützung für **Light Mode**, **Dark Mode** und Systemstandard (persistente Speicherung).
+- **Sicherheit & Komfort:** 
+  - **Biometrischer Login:** Schütze den App-Start mit Fingerabdruck oder FaceID (aktivierbar im Profil).
+  - **Persistente Anmeldung:** Melde dich einmal an und bleibe eingeloggt, ohne jedes Mal das Passwort tippen zu müssen.
+  - **Smart Lock:** Automatischer Sperrbildschirm bei abgebrochener Biometrie-Abfrage.
 
 ## 🛠 Tech-Stack & Architektur
 
 - **Frontend:** Flutter (Material 3)
 - **Backend:** [PocketBase](https://pocketbase.io)
 - **Design-System:** "Modern Blue" Theme mit der Schriftart "Outfit".
-- **Component-based Design:** Alle zentralen UI-Elemente (`StandardFab`, `InventoryForm`, `InventoryPageLayout`) sind in `lib/ui_components.dart` zentralisiert. Dies sorgt für eine absolut konsistente Benutzeroberfläche und ermöglicht blitzschnelle Design-Anpassungen (z.B. für iOS).
+- **Component-based Design:** Alle zentralen UI-Elemente (`StandardFab`, `InventoryForm`, `InventoryPageLayout`) sind in `lib/ui_components.dart` zentralisiert.
+- **Sicherer Auth-Store:** Eigener `SharedPreferencesAuthStore` sorgt für die dauerhafte Speicherung der Sitzung auf dem Gerät.
+- **Adaptive UI:** Kontraste und Farben passen sich dynamisch an (z.B. automatische Textfarbe in der Kopfzeile je nach Hintergrund).
 
 ---
 
@@ -48,6 +54,7 @@ Eine moderne, hierarchische Flutter-Anwendung zur Inventarverwaltung für zuhaus
 1. `flutter pub get`.
 2. **Netzwerk:** In `lib/main.dart` die Variable `pcIp` auf die lokale IPv4-Adresse deines PCs setzen (für Android-Devices).
 3. **Build:** `flutter run` (minSdk 21).
+   - *Hinweis für Android:* Die App nutzt `FlutterFragmentActivity` für Biometrie-Support.
 
 ---
 

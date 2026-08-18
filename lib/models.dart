@@ -1,6 +1,10 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:flutter/material.dart';
 
+// Zentrale Konfiguration für QR-Codes
+// Ändere diese Domain später auf deine lokale Docker-Adresse (z.B. http://inventar.home)
+const String qrBaseUrl = 'https://home-inventory.app';
+
 class Room {
   final String id;
   final String name;

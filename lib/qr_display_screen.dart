@@ -14,8 +14,9 @@ class QrDisplayScreen extends StatelessWidget {
 
   String get _name => container?.name ?? item?.name ?? 'Unbekannt';
   String get _id => container?.id ?? item?.id ?? '';
-  String get _type => container != null ? 'container' : 'item';
-  String get _qrData => 'home_inventory_$_type:$_id';
+  String get _type => container != null ? 'c' : 'i';
+  // Nutzt die zentrale Domain aus models.dart
+  String get _qrData => '$qrBaseUrl/$_type/$_id';
 
   Future<void> _printQrCode(BuildContext context) async {
     try {
@@ -33,13 +34,15 @@ class QrDisplayScreen extends StatelessWidget {
                   pw.SizedBox(height: 20),
                   pw.Text(_name, style: pw.TextStyle(fontSize: 30)),
                   pw.SizedBox(height: 10),
-                  pw.Text(_type == 'container' ? 'Container / Box' : 'Artikel', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey700)),
+                  pw.Text(container != null ? 'Container / Box' : 'Artikel', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey700)),
                   pw.SizedBox(height: 40),
                   pw.Container(
                     width: 300,
                     height: 300,
+                    padding: const pw.EdgeInsets.all(20), // Quiet Zone für Scanner
+                    decoration: pw.BoxDecoration(color: PdfColors.white),
                     child: pw.BarcodeWidget(
-                      barcode: pw.Barcode.qrCode(),
+                      barcode: pw.Barcode.qrCode(errorCorrectLevel: pw.BarcodeQRCorrectionLevel.high),
                       data: _qrData,
                       width: 300,
                       height: 300,

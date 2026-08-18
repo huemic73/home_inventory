@@ -137,7 +137,8 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
                   child: DropdownButtonFormField<String>(
                     isExpanded: true,
                     decoration: const InputDecoration(border: InputBorder.none),
-                    initialValue: _selectedRoomId,
+                    // Wert nur setzen, wenn er in der geladenen Liste existiert
+                    initialValue: rooms.any((r) => r.id == _selectedRoomId) ? _selectedRoomId : null,
                     hint: const Text('Raum auswählen'),
                     items: rooms.map((r) => DropdownMenuItem(
                       value: r.id, 
@@ -170,7 +171,10 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
               child: DropdownButtonFormField<String?>(
                 isExpanded: true,
                 decoration: const InputDecoration(border: InputBorder.none),
-                initialValue: _selectedLocationId,
+                // Wert nur setzen, wenn er in der geladenen Liste existiert
+                initialValue: (_locations != null && _locations!.any((l) => l.id == _selectedLocationId)) 
+                    ? _selectedLocationId 
+                    : null,
                 disabledHint: const Text('Zuerst Raum wählen'),
                 hint: const Text('Direkt im Raum'),
                 items: [
@@ -199,7 +203,10 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
               child: DropdownButtonFormField<String>(
                 isExpanded: true,
                 decoration: const InputDecoration(border: InputBorder.none),
-                initialValue: _selectedContainerId,
+                // Wert nur setzen, wenn er in der geladenen Liste existiert
+                initialValue: (_containers != null && _containers!.any((c) => c.id == _selectedContainerId)) 
+                    ? _selectedContainerId 
+                    : null,
                 disabledHint: const Text('Zuerst Raum wählen'),
                 hint: const Text('Box / Regal wählen'),
                 items: _containers?.map((c) => DropdownMenuItem(

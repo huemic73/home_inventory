@@ -76,6 +76,8 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                       locationText += ' > ${locRecord.getStringValue('name')}';
                     }
 
+                    final String qrData = '$qrBaseUrl/c/${container.id}';
+
                     return pw.Container(
                       width: 140, height: 170,
                       decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400), borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10))),
@@ -87,7 +89,11 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                           pw.SizedBox(height: 4),
                           pw.Text(locationText, style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700), textAlign: pw.TextAlign.center),
                           pw.SizedBox(height: 8),
-                          pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: 'home_inventory_container:${container.id}', width: 75, height: 75),
+                          pw.BarcodeWidget(
+                            barcode: pw.Barcode.qrCode(errorCorrectLevel: pw.BarcodeQRCorrectionLevel.high), 
+                            data: qrData, 
+                            width: 75, height: 75
+                          ),
                           pw.SizedBox(height: 4),
                           pw.Text('ID: ${container.id.substring(0, 8)}', style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
                         ],

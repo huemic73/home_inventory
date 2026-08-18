@@ -139,10 +139,13 @@ class _MoveContainerScreenState extends State<MoveContainerScreen> {
                 color: _selectedRoomId == null ? Colors.grey.withAlpha(10) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: DropdownButtonFormField<String?>( // Typ auf String? geändert
+              child: DropdownButtonFormField<String?>(
                 isExpanded: true,
                 decoration: const InputDecoration(border: InputBorder.none),
-                initialValue: _selectedLocationId,
+                // Nur den Wert setzen, wenn er auch in der Liste der geladenen Orte ist
+                initialValue: (_locations != null && _locations!.any((l) => l.id == _selectedLocationId)) 
+                    ? _selectedLocationId 
+                    : null,
                 hint: const Text('Direkt im Raum (kein spezieller Ort)'),
                 items: [
                   const DropdownMenuItem<String?>(

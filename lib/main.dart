@@ -71,7 +71,7 @@ class HomeInventoryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const String pcIp = '192.168.178.54';
+    const String pcIp = '10.86.237.6';
     
     String baseUrl = 'http://127.0.0.1:8090';
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {

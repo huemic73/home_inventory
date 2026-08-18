@@ -3,6 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'models.dart';
 import 'item_list_screen.dart';
+import 'item_detail_screen.dart';
 
 class ScannerScreen extends StatefulWidget {
   final PocketBase pb;
@@ -23,19 +24,56 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
       final String? code = barcode.rawValue;
-      if (code == null || !code.startsWith('home_inventory_container:')) continue;
+      if (code == null) continue;
 
-      setState(() => _isProcessed = true);
-      final scannedId = code.replaceFirst('home_inventory_container:', '');
+      // Nur noch das neue URL-Format unterstützen (zentral konfiguriert)
+      if (code.startsWith(qrBaseUrl)) {
+        final uri = Uri.parse(code);
+        final segments = uri.pathSegments;
+        
+        if (segments.length >= 2) {
+          final type = segments[0]; // 'c' für container, 'i' für item
+          final id = segments[1];
 
-      if (widget.isAssigningMode) {
-        // Wir sind im Zuweisungsmodus -> ID zurückgeben an den vorherigen Screen
-        Navigator.pop(context, scannedId);
-        return;
+          setState(() => _isProcessed = true);
+
+          if (widget.isAssigningMode) {
+            Navigator.pop(context, id);
+            return;
+          }
+
+          if (type == 'c') {
+            _openContainer(id);
+          } else if (type == 'i') {
+            _openItem(id);
+          }
+          break;
+        }
       }
+    }
+  }
 
-      _openContainer(scannedId);
-      break;
+  Future<void> _openItem(String id) async {
+    try {
+      final record = await widget.pb.collection('items').getOne(
+        id, 
+        expand: 'container,container.room,container.storage_location'
+      );
+      final item = Item.fromRecord(record);
+      
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, container: null, room: null, onlyUnassigned: false)), // Basis-Navigation
+        );
+        // Da wir direkt zum Item wollen, pushen wir den Detail-Screen drüber
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ItemDetailScreen(item: item, pb: widget.pb)),
+        );
+      }
+    } catch (e) {
+      _resetScanner('Artikel nicht gefunden: $e');
     }
   }
 

@@ -9,7 +9,8 @@ Entwicklung einer modernen, hierarchischen Inventarverwaltung. Fokus auf Schnell
 - **Frontend:** Flutter (Material 3)
 - **Backend:** PocketBase (Go/SQLite)
 - **Master-Layout:** Alle Übersichtsseiten nutzen die `InventoryPageLayout`-Komponente (`lib/ui_components.dart`), was einheitliche Header, Gradients und Sticky-Effekte garantiert.
-- **Persistence:** `shared_preferences` für lokale Einstellungen (z.B. ThemeMode).
+- **Persistence:** `shared_preferences` für Einstellungen und Sitzungsdaten via `SharedPreferencesAuthStore`.
+- **Sicherheit:** Integration von `local_auth` für biometrische Anmeldung. Die `MainActivity` erbt von `FlutterFragmentActivity`.
 - **Data Access:** Konsequente Nutzung von `.get<T>("expand...")` für robuste Typisierung.
 
 ## 🗂 Daten-Hierarchie
@@ -21,6 +22,7 @@ Entwicklung einer modernen, hierarchischen Inventarverwaltung. Fokus auf Schnell
 ## 🔍 Besondere Logik
 - **Sticky-Zone:** Suchleisten und Filter nutzen `SliverPersistentHeader`, um beim Scrollen oben anzudocken.
 - **QR-System:** Suche nach manueller `labelId` vor DB-ID. Scannen zeigt sofort Container-Inhalt ("Röntgenblick").
+- **Biometrie-Workflow:** Automatischer Check beim Start via `AuthCheck`. Manueller Fallback-Button auf Sperrbildschirm bei Abbruch. Integration im Login-Screen für schnellen Re-Login.
 - **Platform-Ready:** Die UI-Zentralisierung ist für **Platform-Adaptive Design** vorbereitet (einfaches Umschalten auf Cupertino/iOS-Stil in `ui_components.dart`).
 - **Forms:** Einheitliche `InventoryForm` Komponente für alle Datentypen mit Kamera/Galerie-Support.
 
@@ -32,5 +34,5 @@ Entwicklung einer modernen, hierarchischen Inventarverwaltung. Fokus auf Schnell
 
 ## 🚦 Aktueller Status
 - **Status:** Funktionsfähig & Hochgradig optimiert.
-- **Highlights:** Vollständiger Dark-Mode-Support, einheitliche Formular-Layouts, robuste asynchrone Navigation (Context-Safety).
-- **Wartbarkeit:** Alle UI-Schrauben sind in `ui_components.dart` zentralisiert.
+- **Highlights:** Biometrischer Login, persistente Sitzungen, vollautomatischer Dark-Mode-Support, einheitliche Layouts über alle Screens hinweg.
+- **Wartbarkeit:** Alle UI-Schrauben sind in `ui_components.dart` zentralisiert. Die gesamte App folgt dem Material 3 Design-Standard (inklusive neuester Container-Farbnamen wie `surfaceContainerHighest`).
