@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'item_detail_screen.dart';
 import 'move_container_screen.dart';
+import 'scanner_screen.dart';
+import 'global_search_screen.dart';
 import 'ui_components.dart';
 
 class ContainerListScreen extends StatefulWidget {
@@ -21,6 +23,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   Map<String, int> _childNodeCounts = {};
   Map<String, int> _totalItemCounts = {}; // Summe aller Artikel inkl. Unter-Nodes
   Set<String> _occupiedNodeIds = {};
+  List<StorageNode> _path = []; // Neu: Pfad-Tracking
   bool _onlyOccupied = false;
 
   @override
@@ -35,11 +38,27 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchData() async {
-    // 1. Alle relevanten Daten für Berechnungen laden
-    // Wir laden alles aus PocketBase, um die rekursive Struktur lokal zu berechnen
-    // 1. Alle relevanten Daten für Berechnungen laden
+    // 1. Alle relevanten Daten laden
     final allNodesRecords = await widget.pb.collection('nodes').getFullList();
     final allItemsRecords = await widget.pb.collection('items').getFullList(expand: 'tags');
+
+    // Pfad berechnen
+    final Map<String, StorageNode> allNodesMap = {
+      for (var r in allNodesRecords) r.id: StorageNode.fromRecord(r)
+    };
+    
+    List<StorageNode> currentPath = [];
+    StorageNode? current = allNodesMap[widget.parentNode.id];
+    while (current != null) {
+      currentPath.add(current);
+      current = current.parentId != null ? allNodesMap[current.parentId] : null;
+    }
+    
+    if (mounted) {
+      setState(() {
+        _path = currentPath.reversed.toList();
+      });
+    }
 
     final Map<String, List<String>> parentToChildren = {};
     for (var r in allNodesRecords) {
@@ -120,9 +139,12 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       title: widget.parentNode.name,
       subtitle: '${widget.parentNode.type.name.toUpperCase()} · Inhaltsverzeichnis',
       imageUrl: imageUrl,
+      breadcrumbs: _path,
+      onHomePressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
       actions: [
+        IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
+        IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb)))),
         IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
-        const SizedBox(width: 16),
       ],
       filterChips: [
         FilterChip(

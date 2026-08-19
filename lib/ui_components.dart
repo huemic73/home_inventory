@@ -49,10 +49,12 @@ class InventoryPageLayout extends StatelessWidget {
   final List<Widget>? actions;
   final Widget? drawer;
   final List<Widget>? filterChips;
-  final Widget? filterBar; // Neues Feld für volle Breite
+  final Widget? filterBar;
   final String? sectionTitle;
   final List<Widget> slivers;
   final Widget? floatingActionButton;
+  final List<StorageNode>? breadcrumbs; // Neu: Pfad-Navigation
+  final VoidCallback? onHomePressed;     // Neu: Schnell zurück zum Start
 
   const InventoryPageLayout({
     super.key,
@@ -66,19 +68,54 @@ class InventoryPageLayout extends StatelessWidget {
     this.sectionTitle,
     required this.slivers,
     this.floatingActionButton,
+    this.breadcrumbs,
+    this.onHomePressed,
   });
 
   double _calculateHeaderHeight(Widget? bar, List<Widget>? chips, String? title) {
-    double h = 20.0; // Basis-Padding
-    if (bar != null) h += 72.0; // Suche
-    if (chips != null) h += 48.0; // Tag-Chips
-    if (title != null) h += 30.0; // Sektionstitel
-    
-    // Abstände zwischen den Zeilen
+    double h = 20.0;
+    if (bar != null) h += 72.0;
+    if (chips != null) h += 48.0;
+    if (title != null) h += 30.0;
     if (bar != null && (chips != null || title != null)) h += 12.0;
     if (chips != null && title != null) h += 12.0;
-    
     return h;
+  }
+
+  Widget _buildBreadcrumbs(BuildContext context, bool useWhite) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      height: 20,
+      child: ListView.separated(
+        shrinkWrap: true,
+        scrollDirection: Axis.horizontal,
+        itemCount: breadcrumbs!.length,
+        separatorBuilder: (context, index) => Text(
+          ' > ', 
+          style: TextStyle(color: useWhite ? Colors.white38 : Colors.black26, fontSize: 10)
+        ),
+        itemBuilder: (context, index) {
+          final node = breadcrumbs![index];
+          final isLast = index == breadcrumbs!.length - 1;
+          return GestureDetector(
+            onTap: isLast ? null : () {
+              final int popCount = breadcrumbs!.length - index - 1;
+              for (int i = 0; i < popCount; i++) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: Text(
+              node.name,
+              style: TextStyle(
+                color: useWhite ? (isLast ? Colors.white : Colors.white70) : (isLast ? Colors.black87 : Colors.black54),
+                fontSize: 10,
+                fontWeight: isLast ? FontWeight.bold : FontWeight.w600,
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -103,14 +140,21 @@ class InventoryPageLayout extends StatelessWidget {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: hasHeaderImage ? 250 : 140,
+              expandedHeight: hasHeaderImage ? 250 : (breadcrumbs != null ? 165 : 140),
               pinned: true,
               elevation: 0,
               backgroundColor: isDark 
                   ? Colors.black26 
                   : (hasHeaderImage ? Theme.of(context).colorScheme.primary : Colors.transparent),
               foregroundColor: isDark || hasHeaderImage ? Colors.white : Colors.black87,
-              actions: actions,
+              leading: (breadcrumbs != null && breadcrumbs!.isNotEmpty)
+                  ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context))
+                  : null,
+              actions: [
+                if (onHomePressed != null)
+                  IconButton(icon: const Icon(Icons.home_outlined), onPressed: onHomePressed),
+                ...?actions,
+              ],
               flexibleSpace: FlexibleSpaceBar(
                 background: hasHeaderImage 
                     ? Stack(
@@ -134,6 +178,8 @@ class InventoryPageLayout extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (breadcrumbs != null && breadcrumbs!.isNotEmpty)
+                      _buildBreadcrumbs(context, isDark || hasHeaderImage),
                     Text(
                       title,
                       style: TextStyle(
@@ -141,10 +187,10 @@ class InventoryPageLayout extends StatelessWidget {
                         fontSize: 18, 
                         color: isDark || hasHeaderImage ? Colors.white : Colors.black87
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (subtitle != null)
+                    if (subtitle != null && (breadcrumbs == null || breadcrumbs!.isEmpty))
                       Text(
                         subtitle!,
                         style: TextStyle(

@@ -71,9 +71,6 @@ class StorageNode {
   bool canBePlacedIn(StorageNode potentialParent) {
     if (potentialParent.id == id) return false;
     
-    // Zirkelbezug-Schutz (Lineage-Check)
-    // Hinweis: Im echten App-Kontext müssen wir den Baum via 'expand' oder separatem Cache prüfen
-    
     switch (type) {
       case NodeType.area:
         return false;
@@ -85,6 +82,10 @@ class StorageNode {
         return true; // Darf fast überall rein
     }
   }
+
+  /// Gibt den hierarchischen Pfad dieser Node als Liste zurück (für Breadcrumbs)
+  /// Hinweis: Da PocketBase standardmäßig keine unendliche Expansion macht, 
+  /// laden wir den Pfad bei Bedarf in der UI oder via Helper.
 }
 
 class Item {
