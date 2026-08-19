@@ -26,6 +26,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   late String _currentPhoto;
   late String _currentName;
   late int _currentQuantity;
+  RecordModel? _currentRecord;
   bool _isUploading = false;
 
   @override
@@ -34,13 +35,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     _currentPhoto = widget.item.photo;
     _currentName = widget.item.name;
     _currentQuantity = widget.item.quantity;
+    _currentRecord = widget.item.record;
   }
 
   String _getImageUrl() {
-    if (_currentPhoto.isEmpty || widget.item.record == null) {
+    if (_currentPhoto.isEmpty || _currentRecord == null) {
       return '';
     }
-    return widget.pb.files.getUrl(widget.item.record!, _currentPhoto).toString();
+    return widget.pb.files.getUrl(_currentRecord!, _currentPhoto).toString();
   }
 
   Future<void> _pickAndUploadImage(ImageSource source) async {
@@ -52,7 +54,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       imageQuality: 80,
     );
 
-    if (image == null || widget.item.record == null) {
+    if (image == null || _currentRecord == null) {
       return;
     }
 
@@ -65,10 +67,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       final updatedRecord = await widget.pb.collection('items').update(
         widget.item.id,
         files: [file],
+        expand: 'node,tags',
       );
 
       setState(() {
         _currentPhoto = updatedRecord.getStringValue('photo');
+        _currentRecord = updatedRecord;
         _isUploading = false;
       });
     } catch (e) {
@@ -85,19 +89,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
     // Pfad berechnen
     String path = 'Ohne Zuordnung';
-    final containerRecord = widget.item.record?.get<RecordModel?>('expand.container');
-    if (containerRecord != null) {
-      final roomName = containerRecord.get<RecordModel?>('expand.room')?.getStringValue('name') ?? 'Unbekannter Raum';
-      final containerName = containerRecord.getStringValue('name');
-      final locRecord = containerRecord.get<RecordModel?>('expand.storage_location');
-      final locName = locRecord?.getStringValue('name');
-      
-      if (locName != null && locName.isNotEmpty) {
-        path = '$roomName > $locName > $containerName';
-      } else {
-        path = '$roomName > $containerName';
-      }
+    final nodeRecord = _currentRecord?.get<RecordModel?>('expand.node');
+    if (nodeRecord != null) {
+      path = nodeRecord.getStringValue('name');
     }
+
+    final tags = _currentRecord?.get<List<RecordModel>?>('expand.tags') ?? [];
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -151,6 +148,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
                       const Divider(height: 32),
                       _buildInfoRow(context, 'Standort', path, Icons.location_on_outlined),
+                      if (tags.isNotEmpty) ...[
+                        const Divider(height: 32),
+                        _buildTagsRow(context, tags),
+                      ],
                     ],
                   ),
                 ),
@@ -224,15 +225,18 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         title: 'Gegenstand bearbeiten',
         initialName: _currentName,
         initialQuantity: _currentQuantity,
-        initialPhotoUrl: _currentPhoto.isNotEmpty 
-            ? widget.pb.files.getUrl(widget.item.record!, _currentPhoto).toString() 
+        initialPhotoUrl: _currentPhoto.isNotEmpty && _currentRecord != null
+            ? widget.pb.files.getUrl(_currentRecord!, _currentPhoto).toString() 
             : null,
+        initialTagIds: _currentRecord?.getListValue<String>('tags'),
         showQuantity: true,
+        showTagSelector: true,
         pb: widget.pb,
-        onSave: (name, quantity, imageFile, icon, labelId) async {
+        onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
           final Map<String, dynamic> body = {
             'name': name,
             'quantity': quantity,
+            'tags': tagIds,
           };
 
           List<http.MultipartFile> files = [];
@@ -250,12 +254,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               widget.item.id,
               body: body,
               files: files,
+              expand: 'node,tags',
             );
             
             setState(() {
               _currentName = name;
               _currentQuantity = quantity;
               _currentPhoto = updatedRecord.getStringValue('photo');
+              _currentRecord = updatedRecord;
             });
             
             if (context.mounted) {
@@ -296,7 +302,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   Widget _buildInfoRow(BuildContext context, String label, String value, IconData icon) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center, // Vertikale Ausrichtung
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.all(10),
@@ -304,7 +310,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           child: Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
         ),
         const SizedBox(width: 16),
-        Expanded( // WICHTIG: Erlaubt der Spalte den restlichen Platz zu nutzen
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -312,7 +318,49 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               Text(
                 value, 
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                softWrap: true, // Zeilenumbruch erlauben
+                softWrap: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagsRow(BuildContext context, List<RecordModel> tags) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), shape: BoxShape.circle),
+          child: const Icon(Icons.tag, size: 20, color: Colors.indigo),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tags', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontSize: 11, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: tags.map((t) {
+                  final tag = Tag.fromRecord(t);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: tag.colorData.withAlpha(30),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: tag.colorData.withAlpha(100)),
+                    ),
+                    child: Text(
+                      tag.name,
+                      style: TextStyle(color: tag.colorData, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  );
+                }).toList(),
               ),
             ],
           ),

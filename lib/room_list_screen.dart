@@ -3,6 +3,7 @@ import 'package:pocketbase/pocketbase.dart';
 import 'models.dart';
 import 'container_list_screen.dart';
 import 'item_list_screen.dart';
+import 'move_container_screen.dart';
 import 'scanner_screen.dart';
 import 'bulk_qr_print_screen.dart';
 import 'user_profile_screen.dart';
@@ -18,58 +19,94 @@ class RoomListScreen extends StatefulWidget {
 }
 
 class _RoomListScreenState extends State<RoomListScreen> {
-  late Future<List<Room>> _roomsFuture;
-  Map<String, int> _roomContainerCounts = {};
-  Map<String, int> _roomLocationCounts = {};
+  late Future<List<StorageNode>> _nodesFuture;
+  Map<String, int> _childNodeCounts = {};
+  Map<String, int> _totalItemCounts = {}; // Neu: Summe aller Artikel (inkl. Unter-Nodes)
+  Set<String> _occupiedNodeIds = {}; 
   int _unassignedItemCount = 0;
-  bool _onlyWithContainers = false;
+  bool _onlyOccupied = false;
 
   @override
   void initState() {
     super.initState();
-    _refreshRooms();
+    _refreshNodes();
   }
 
-  void _refreshRooms() {
-    _roomsFuture = _fetchRooms();
+  void _refreshNodes() {
+    _nodesFuture = _fetchNodes();
     setState(() {});
   }
 
-  Future<List<Room>> _fetchRooms() async {
-    final records = await widget.pb.collection('rooms').getFullList(sort: 'name');
-    final rooms = records.map((r) => Room.fromRecord(r)).toList();
+  Future<List<StorageNode>> _fetchNodes() async {
+    // 1. Alles laden für Berechnungen
+    final allNodesRecords = await widget.pb.collection('nodes').getFullList();
+    final allItemsRecords = await widget.pb.collection('items').getFullList();
     
-    final containerRecords = await widget.pb.collection('containers').getFullList(fields: 'room');
-    final Map<String, int> contCounts = {};
-    for (var record in containerRecords) {
-      final roomId = record.getStringValue('room');
-      contCounts[roomId] = (contCounts[roomId] ?? 0) + 1;
+    final Map<String, List<String>> parentToChildren = {};
+    for (var r in allNodesRecords) {
+      final pId = r.getStringValue('parent');
+      if (pId.isNotEmpty) parentToChildren.putIfAbsent(pId, () => []).add(r.id);
     }
 
-    final locationRecords = await widget.pb.collection('storage_locations').getFullList(fields: 'room');
-    final Map<String, int> locCounts = {};
-    for (var record in locationRecords) {
-      final roomId = record.getStringValue('room');
-      locCounts[roomId] = (locCounts[roomId] ?? 0) + 1;
+    final Map<String, int> nodeDirectItems = {};
+    for (var r in allItemsRecords) {
+      final nId = r.getStringValue('node');
+      if (nId.isNotEmpty) {
+        nodeDirectItems[nId] = (nodeDirectItems[nId] ?? 0) + r.getIntValue('quantity');
+      }
     }
+
+    // 2. Rekursive Berechnung von Artikeln und "Belegt"-Status
+    final Map<String, int> totalCounts = {};
+    final Set<String> occupied = {};
+
+    int calculateRecursive(String nodeId) {
+      int count = nodeDirectItems[nodeId] ?? 0;
+      final children = parentToChildren[nodeId] ?? [];
+      for (var childId in children) {
+        count += calculateRecursive(childId);
+      }
+      totalCounts[nodeId] = count;
+      if (count > 0) occupied.add(nodeId);
+      return count;
+    }
+
+    // Für alle Root-Nodes anstoßen
+    for (var node in allNodesRecords.where((r) => r.getStringValue('parent').isEmpty)) {
+      calculateRecursive(node.id);
+    }
+
+    // 3. Root-Nodes für Anzeige holen
+    final records = await widget.pb.collection('nodes').getFullList(
+      filter: 'parent = ""',
+      sort: 'name',
+    );
+    final nodes = records.map((r) => StorageNode.fromRecord(r)).toList();
     
-    final unassignedItems = await widget.pb.collection('items').getFullList(filter: 'container = ""', fields: 'id');
+    final Map<String, int> childCounts = {};
+    for (var r in allNodesRecords) {
+      final pId = r.getStringValue('parent');
+      if (pId.isNotEmpty) childCounts[pId] = (childCounts[pId] ?? 0) + 1;
+    }
+
+    final unassignedItems = await widget.pb.collection('items').getFullList(filter: 'node = ""', fields: 'id');
     
     if (mounted) {
       setState(() {
-        _roomContainerCounts = contCounts;
-        _roomLocationCounts = locCounts;
+        _childNodeCounts = childCounts;
+        _totalItemCounts = totalCounts;
+        _occupiedNodeIds = occupied;
         _unassignedItemCount = unassignedItems.length;
       });
     }
-    return rooms;
+    return nodes;
   }
 
   @override
   Widget build(BuildContext context) {
     return InventoryPageLayout(
       title: 'Heiminventar',
-      subtitle: 'Alle Räume im Überblick',
+      subtitle: 'Standorte & Bereiche',
       drawer: _buildDrawer(context),
       actions: [
         IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
@@ -77,20 +114,53 @@ class _RoomListScreenState extends State<RoomListScreen> {
         const SizedBox(width: 16),
       ],
       filterChips: [
-        FilterChip(label: const Text('Alle Räume'), selected: !_onlyWithContainers, onSelected: (val) => setState(() => _onlyWithContainers = false), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), showCheckmark: false),
+        FilterChip(
+          label: const Text('Alle Bereiche'), 
+          selected: !_onlyOccupied, 
+          onSelected: (val) => setState(() => _onlyOccupied = false), 
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), 
+          showCheckmark: false
+        ),
         const SizedBox(width: 8),
-        FilterChip(label: const Text('Nur belegte'), selected: _onlyWithContainers, onSelected: (val) => setState(() => _onlyWithContainers = true), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), showCheckmark: false),
+        FilterChip(
+          label: const Text('Nur belegte'), 
+          selected: _onlyOccupied, 
+          onSelected: (val) => setState(() => _onlyOccupied = true), 
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), 
+          showCheckmark: false
+        ),
       ],
-      sectionTitle: 'Deine Räume',
-      floatingActionButton: StandardFab(label: 'Raum', onPressed: () => _showAddRoomDialog(context)),
+      sectionTitle: 'Deine Bereiche',
+      floatingActionButton: StandardFab(label: 'Bereich/Raum', onPressed: () => _showAddNodeDialog(context)),
       slivers: [
-        FutureBuilder<List<Room>>(
-          future: _roomsFuture,
+        FutureBuilder<List<StorageNode>>(
+          future: _nodesFuture,
           builder: (context, snapshot) {
+            // ... (Error-Handling bleibt gleich)
+            if (snapshot.hasError) {
+              return SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                        const SizedBox(height: 16),
+                        Text('Fehler beim Laden: ${snapshot.error}', textAlign: TextAlign.center),
+                        const SizedBox(height: 24),
+                        ElevatedButton(onPressed: _refreshNodes, child: const Text('Erneut versuchen')),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
             if (!snapshot.hasData) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
-            var rooms = snapshot.data!;
-            if (_onlyWithContainers) {
-              rooms = rooms.where((r) => (_roomContainerCounts[r.id] ?? 0) > 0).toList();
+            
+            var nodes = snapshot.data!;
+            if (_onlyOccupied) {
+              nodes = nodes.where((n) => _occupiedNodeIds.contains(n.id)).toList();
             }
 
             return SliverPadding(
@@ -99,14 +169,14 @@ class _RoomListScreenState extends State<RoomListScreen> {
                 delegate: SliverChildListDelegate([
                   _buildSpecialTile(context),
                   const SizedBox(height: 24),
-                  if (rooms.isEmpty)
-                    const Center(child: Text('Keine Räume gefunden.'))
+                  if (nodes.isEmpty)
+                    const Center(child: Text('Noch keine Bereiche gefunden.'))
                   else
                     GridView.builder(
                       shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 400, mainAxisExtent: 180, mainAxisSpacing: 20, crossAxisSpacing: 20),
-                      itemCount: rooms.length,
-                      itemBuilder: (context, index) => _buildRoomCard(context, rooms[index]),
+                      itemCount: nodes.length,
+                      itemBuilder: (context, index) => _buildNodeCard(context, nodes[index]),
                     ),
                 ]),
               ),
@@ -125,7 +195,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
       children: [
         DrawerHeader(
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black12, width: 1))),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Text('Heiminventar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)), Text('Modern & Strukturiert', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54))]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Text('Heiminventar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)), Text('Rekursive Struktur v2.0', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54))]),
         ),
         const SizedBox(height: 12),
         NavigationDrawerDestination(icon: Icon(Icons.dashboard_outlined, color: isDark ? Colors.white70 : null), label: Text('Übersicht', style: TextStyle(color: isDark ? Colors.white : null))),
@@ -154,16 +224,12 @@ class _RoomListScreenState extends State<RoomListScreen> {
         title: Text('Ohne Zuordnung', style: TextStyle(color: _unassignedItemCount > 0 || isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
         subtitle: Text(_unassignedItemCount > 0 ? '$_unassignedItemCount Artikel warten auf einen Platz' : 'Alles perfekt einsortiert!', style: TextStyle(color: _unassignedItemCount > 0 || isDark ? Colors.white70 : Colors.black54)),
         trailing: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: _unassignedItemCount > 0 || isDark ? Colors.white24 : Colors.black12, shape: BoxShape.circle), child: Icon(_unassignedItemCount > 0 ? Icons.arrow_forward : Icons.check, color: _unassignedItemCount > 0 || isDark ? Colors.white : Colors.black54)),
-        onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, onlyUnassigned: true))); _refreshRooms(); },
+        onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, onlyUnassigned: true))); _refreshNodes(); },
       ),
     );
   }
 
-  Widget _buildRoomCard(BuildContext context, Room room) {
-    final containerCount = _roomContainerCounts[room.id] ?? 0;
-    final locationCount = _roomLocationCounts[room.id] ?? 0;
-    String subtitle = '$containerCount Container';
-    if (locationCount > 0) subtitle = '$locationCount Orte · $containerCount Container';
+  Widget _buildNodeCard(BuildContext context, StorageNode node) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -172,7 +238,10 @@ class _RoomListScreenState extends State<RoomListScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(32),
-          onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, room: room))); _refreshRooms(); },
+          onTap: () async { 
+            await Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, parentNode: node))); 
+            _refreshNodes(); 
+          },
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -181,14 +250,37 @@ class _RoomListScreenState extends State<RoomListScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(20), borderRadius: BorderRadius.circular(16)), child: Icon(room.iconData, color: Theme.of(context).colorScheme.primary, size: 28)),
-                    PopupMenuButton<String>(icon: const Icon(Icons.more_horiz), onSelected: (val) { if (val == 'edit') _showAddRoomDialog(context, room: room); if (val == 'delete') _showDeleteConfirmDialog(context, room); }, itemBuilder: (context) => [const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), const PopupMenuItem(value: 'delete', child: Text('Löschen'))]),
+                    Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(20), borderRadius: BorderRadius.circular(16)), child: Icon(node.iconData, color: Theme.of(context).colorScheme.primary, size: 28)),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_horiz), 
+                      onSelected: (val) async { 
+                        if (val == 'edit') {
+                          _showAddNodeDialog(context, node: node);
+                        } else if (val == 'move') {
+                          final result = await Navigator.push(
+                            context, 
+                            MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, node: node))
+                          );
+                          if (result == true) _refreshNodes();
+                        } else if (val == 'delete') {
+                          _showDeleteConfirmDialog(context, node); 
+                        }
+                      }, 
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), 
+                        const PopupMenuItem(value: 'move', child: Text('Verschieben')),
+                        const PopupMenuItem(value: 'delete', child: Text('Löschen'))
+                      ],
+                    ),
                   ],
                 ),
                 const Spacer(),
-                Text(room.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)),
+                Text(node.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)),
                 const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(180), fontWeight: FontWeight.w600, fontSize: 12)),
+                Text(
+                  '${_totalItemCounts[node.id] ?? 0} Artikel · ${_childNodeCounts[node.id] ?? 0} Unterelemente', 
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(180), fontWeight: FontWeight.w600, fontSize: 12)
+                ),
               ],
             ),
           ),
@@ -197,41 +289,52 @@ class _RoomListScreenState extends State<RoomListScreen> {
     );
   }
 
-  void _showAddRoomDialog(BuildContext context, {Room? room}) {
+  void _showAddNodeDialog(BuildContext context, {StorageNode? node}) {
     showDialog(
       context: context,
       builder: (context) => InventoryForm(
-        title: room == null ? 'Neuer Raum' : 'Raum bearbeiten',
-        initialName: room?.name,
-        initialIcon: room?.iconName ?? 'meeting_room',
+        title: node == null ? 'Neuer Bereich' : 'Bereich bearbeiten',
+        initialName: node?.name,
+        initialIcon: node?.iconName ?? 'area',
+        initialType: node?.type ?? NodeType.area,
         showIcons: true,
-        availableIcons: const ['meeting_room', 'kitchen', 'garage', 'weekend', 'bed', 'build', 'warehouse', 'deck'],
+        showTypeSelector: true, // Erlaube Wahl zwischen AREA und ROOM
+        availableIcons: const ['area', 'meeting_room', 'weekend', 'deck', 'garage'],
         pb: widget.pb,
-        onSave: (name, quantity, imageFile, icon, labelId) async {
-          final data = {'name': name, 'icon': icon};
+        onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
+          final data = {
+            'name': name, 
+            'icon': icon, 
+            'type': type.name,
+            'parent': '',
+          };
+          // Wenn wir bearbeiten, behalten wir den Typ bei
+          if (node != null) data['type'] = node.type.name;
+
           try {
-            if (room == null) { await widget.pb.collection('rooms').create(body: data); }
-            else { await widget.pb.collection('rooms').update(room.id, body: data); }
+            if (node == null) { await widget.pb.collection('nodes').create(body: data); }
+            else { await widget.pb.collection('nodes').update(node.id, body: data); }
             if (context.mounted) Navigator.pop(context);
-            _refreshRooms();
+            _refreshNodes();
           } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }
         },
       ),
     );
   }
 
-  void _showDeleteConfirmDialog(BuildContext context, Room room) {
+  void _showDeleteConfirmDialog(BuildContext context, StorageNode node) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Löschen?'),
+        content: const Text('Dies löscht nur diesen Knoten. Unterelemente müssen separat verschoben werden.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
           TextButton(
             onPressed: () async {
               final nav = Navigator.of(context);
-              await widget.pb.collection('rooms').delete(room.id);
-              if (context.mounted) { nav.pop(); _refreshRooms(); }
+              await widget.pb.collection('nodes').delete(node.id);
+              if (context.mounted) { nav.pop(); _refreshNodes(); }
             },
             child: const Text('Löschen', style: TextStyle(color: Colors.red)),
           ),

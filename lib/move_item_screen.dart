@@ -13,67 +13,20 @@ class MoveItemScreen extends StatefulWidget {
 }
 
 class _MoveItemScreenState extends State<MoveItemScreen> {
-  late Future<List<Room>> _roomsFuture;
-  String? _selectedRoomId;
-  
-  List<StorageLocation>? _locations;
-  String? _selectedLocationId;
-  
-  List<InventoryContainer>? _containers;
-  String? _selectedContainerId;
-  
+  late Future<List<StorageNode>> _nodesFuture;
+  String? _selectedNodeId;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _roomsFuture = _fetchRooms();
+    _nodesFuture = _fetchNodes();
+    _selectedNodeId = widget.item.nodeId;
   }
 
-  Future<List<Room>> _fetchRooms() async {
-    final roomRecords = await widget.pb.collection('rooms').getFullList(sort: 'name');
-    final allRooms = roomRecords.map((r) => Room.fromRecord(r)).toList();
-
-    final containerRecords = await widget.pb.collection('containers').getFullList(fields: 'room');
-    final Set<String> roomIdsWithContainers = containerRecords
-        .map((c) => c.getStringValue('room'))
-        .where((id) => id.isNotEmpty)
-        .toSet();
-
-    return allRooms.where((room) => roomIdsWithContainers.contains(room.id)).toList();
-  }
-
-  Future<void> _fetchLocations(String roomId) async {
-    final records = await widget.pb.collection('storage_locations').getFullList(
-      filter: 'room = "$roomId"',
-      sort: 'name',
-    );
-    setState(() {
-      _locations = records.map((r) => StorageLocation.fromRecord(r)).toList();
-      _selectedLocationId = null;
-      _containers = null;
-      _selectedContainerId = null;
-    });
-    // Auch Container ohne Location für diesen Raum laden
-    _fetchContainers(roomId, null);
-  }
-
-  Future<void> _fetchContainers(String roomId, String? locationId) async {
-    String filter = 'room = "$roomId"';
-    if (locationId != null) {
-      filter += ' && storage_location = "$locationId"';
-    } else {
-      filter += ' && storage_location = ""';
-    }
-
-    final records = await widget.pb.collection('containers').getFullList(
-      filter: filter,
-      sort: 'name',
-    );
-    setState(() {
-      _containers = records.map((r) => InventoryContainer.fromRecord(r)).toList();
-      _selectedContainerId = null;
-    });
+  Future<List<StorageNode>> _fetchNodes() async {
+    final records = await widget.pb.collection('nodes').getFullList(sort: 'name');
+    return records.map((r) => StorageNode.fromRecord(r)).toList();
   }
 
   Future<void> _saveMove() async {
@@ -81,7 +34,7 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
     try {
       await widget.pb.collection('items').update(
         widget.item.id,
-        body: {'container': _selectedContainerId},
+        body: {'node': _selectedNodeId ?? ''},
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -96,173 +49,49 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Verschieben', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Artikel verschieben'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Wohin soll', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontSize: 13, fontWeight: FontWeight.w600)),
-                  Text(widget.item.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  const Text('verschoben werden?'),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            _buildSectionTitle('1. Raum wählen'),
-            FutureBuilder<List<Room>>(
-              future: _roomsFuture,
+            Text('Wähle einen neuen Ort für ${widget.item.name}:', style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            FutureBuilder<List<StorageNode>>(
+              future: _nodesFuture,
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const LinearProgressIndicator();
-                final rooms = snapshot.data!;
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                final nodes = snapshot.data!;
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                  child: DropdownButtonFormField<String>(
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: _selectedNodeId,
                     isExpanded: true,
                     decoration: const InputDecoration(border: InputBorder.none),
-                    // Wert nur setzen, wenn er in der geladenen Liste existiert
-                    initialValue: rooms.any((r) => r.id == _selectedRoomId) ? _selectedRoomId : null,
-                    hint: const Text('Raum auswählen'),
-                    items: rooms.map((r) => DropdownMenuItem(
-                      value: r.id, 
-                      child: Row(
-                        children: [
-                          Icon(r.iconData, size: 20), 
-                          const SizedBox(width: 12), 
-                          Expanded(child: Text(r.name, overflow: TextOverflow.ellipsis))
-                        ]
-                      )
-                    )).toList(),
-                    onChanged: (val) {
-                      setState(() => _selectedRoomId = val);
-                      if (val != null) _fetchLocations(val);
-                    },
+                    items: [
+                      const DropdownMenuItem<String?>(value: '', child: Text('Lose (keinem Ort zugeordnet)')),
+                      ...nodes.map((n) => DropdownMenuItem<String?>(
+                        value: n.id,
+                        child: Text('${n.type.name.toUpperCase()}: ${n.name}')
+                      )),
+                    ],
+                    onChanged: (val) => setState(() => _selectedNodeId = val),
                   ),
                 );
               },
             ),
-            
-            const SizedBox(height: 24),
-            
-            _buildSectionTitle('2. Ablageort (optional)'),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: _selectedRoomId == null ? Colors.grey.withAlpha(10) : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: DropdownButtonFormField<String?>(
-                isExpanded: true,
-                decoration: const InputDecoration(border: InputBorder.none),
-                // Wert nur setzen, wenn er in der geladenen Liste existiert
-                initialValue: (_locations != null && _locations!.any((l) => l.id == _selectedLocationId)) 
-                    ? _selectedLocationId 
-                    : null,
-                disabledHint: const Text('Zuerst Raum wählen'),
-                hint: const Text('Direkt im Raum'),
-                items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('Direkt im Raum (kein Ort)')),
-                  ...?_locations?.map((l) => DropdownMenuItem<String?>(
-                    value: l.id, 
-                    child: Row(children: [Icon(l.iconData, size: 20), const SizedBox(width: 12), Expanded(child: Text(l.name, overflow: TextOverflow.ellipsis))])
-                  )),
-                ],
-                onChanged: _selectedRoomId == null ? null : (val) {
-                  setState(() => _selectedLocationId = val);
-                  _fetchContainers(_selectedRoomId!, val);
-                },
-              ),
-            ),
-
-            const SizedBox(height: 24),
-            
-            _buildSectionTitle('3. Container wählen'),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: _selectedRoomId == null ? Colors.grey.withAlpha(10) : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: DropdownButtonFormField<String>(
-                isExpanded: true,
-                decoration: const InputDecoration(border: InputBorder.none),
-                // Wert nur setzen, wenn er in der geladenen Liste existiert
-                initialValue: (_containers != null && _containers!.any((c) => c.id == _selectedContainerId)) 
-                    ? _selectedContainerId 
-                    : null,
-                disabledHint: const Text('Zuerst Raum wählen'),
-                hint: const Text('Box / Regal wählen'),
-                items: _containers?.map((c) => DropdownMenuItem(
-                  value: c.id, 
-                  child: Row(
-                    children: [
-                      Icon(c.iconData, size: 20), 
-                      const SizedBox(width: 12), 
-                      Expanded(child: Text(c.name, overflow: TextOverflow.ellipsis))
-                    ]
-                  )
-                )).toList() ?? [],
-                onChanged: _selectedRoomId == null ? null : (val) => setState(() => _selectedContainerId = val),
-              ),
-            ),
-            
             const SizedBox(height: 48),
-            
-            FilledButton(
-              onPressed: (_selectedContainerId == null || _isSaving) ? null : _saveMove,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _isSaving ? null : _saveMove,
+                child: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text('Speichern'),
               ),
-              child: _isSaving 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Verschieben bestätigen', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _isSaving ? null : () {
-                setState(() { 
-                  _selectedContainerId = null; 
-                  _selectedRoomId = null; 
-                  _selectedLocationId = null;
-                  _containers = null; 
-                });
-                _saveMove();
-              },
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                side: BorderSide(color: Theme.of(context).colorScheme.primary.withAlpha(50)),
-              ),
-              child: const Text('Als "lose" markieren'),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8, bottom: 12),
-      child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
     );
   }
 }

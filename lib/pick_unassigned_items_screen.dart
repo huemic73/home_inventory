@@ -4,12 +4,12 @@ import 'models.dart';
 
 class PickUnassignedItemsScreen extends StatefulWidget {
   final PocketBase pb;
-  final InventoryContainer targetContainer;
+  final StorageNode targetNode;
 
   const PickUnassignedItemsScreen({
     super.key, 
     required this.pb, 
-    required this.targetContainer
+    required this.targetNode
   });
 
   @override
@@ -34,7 +34,7 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
 
   Future<List<Item>> _fetchUnassignedItems() async {
     final records = await widget.pb.collection('items').getFullList(
-      filter: 'container = ""',
+      filter: 'node = ""',
       sort: '-created',
     );
     return records.map((r) => Item.fromRecord(r)).toList();
@@ -47,7 +47,7 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
     try {
       for (final id in _selectedItemIds) {
         await widget.pb.collection('items').update(id, body: {
-          'container': widget.targetContainer.id,
+          'node': widget.targetNode.id,
         });
       }
       if (mounted) Navigator.pop(context, true);
@@ -69,7 +69,7 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Artikel einsortieren', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text('In: ${widget.targetContainer.name}', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12)),
+            Text('In: ${widget.targetNode.name}', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12)),
           ],
         ),
       ),

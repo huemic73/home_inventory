@@ -19,9 +19,13 @@ class SharedPreferencesAuthStore extends AuthStore {
   @override
   void save(String newToken, dynamic newRecord) {
     super.save(newToken, newRecord);
+    
+    // PocketBase RecordModel has a toJson() method.
+    final modelData = newRecord is RecordModel ? newRecord.toJson() : newRecord;
+    
     prefs.setString('pb_auth', jsonEncode({
       'token': newToken,
-      'model': newRecord,
+      'model': modelData,
     }));
   }
 
@@ -37,14 +41,30 @@ class SharedPreferencesAuthStore extends AuthStore {
     if (raw != null) {
       try {
         final decoded = jsonDecode(raw);
-        // Da 'model' ein RecordModel sein muss, mappen wir es hier
-        // In der neuesten Version reicht oft das token, PocketBase validiert den Rest
-        store.save(decoded['token'], decoded['model']);
+        final token = decoded['token'] as String;
+        final modelData = decoded['model'];
+        
+        RecordModel? model;
+        if (modelData != null && modelData is Map<String, dynamic>) {
+          try {
+            model = RecordModel.fromJson(modelData);
+          } catch (e) {
+            debugPrint('RecordModel.fromJson fehlgeschlagen: $e');
+            // Fallback: model bleibt null, Token reicht oft für isValid
+          }
+        }
+
+        store.handleInitialLoad(token, model);
       } catch (e) {
-        debugPrint('Fehler beim Laden des Auth-Stores: $e');
+        debugPrint('Fehler beim Laden des Auth-Stores: $raw - Error: $e');
       }
     }
     return store;
+  }
+
+  // Hilfsmethode, um den internen Status zu setzen, ohne erneut in Prefs zu schreiben
+  void handleInitialLoad(String newToken, dynamic newRecord) {
+    super.save(newToken, newRecord);
   }
 }
 
@@ -71,7 +91,7 @@ class HomeInventoryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const String pcIp = '10.86.237.6';
+    const String pcIp = '192.168.178.54';
     
     String baseUrl = 'http://127.0.0.1:8090';
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {

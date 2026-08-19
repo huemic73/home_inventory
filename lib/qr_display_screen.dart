@@ -6,7 +6,7 @@ import 'package:printing/printing.dart';
 import 'models.dart';
 
 class QrDisplayScreen extends StatelessWidget {
-  final InventoryContainer? container;
+  final StorageNode? container;
   final Item? item;
 
   const QrDisplayScreen({super.key, this.container, this.item})

@@ -1,92 +1,90 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:flutter/material.dart';
 
-// Zentrale Konfiguration für QR-Codes
-// Ändere diese Domain später auf deine lokale Docker-Adresse (z.B. http://inventar.home)
+// Zentrale Konfiguration für QR-Codes (v2.0)
 const String qrBaseUrl = 'https://home-inventory.app';
 
-class Room {
-  final String id;
-  final String name;
-  final String iconName;
-  final RecordModel record;
-
-  Room({required this.id, required this.name, required this.iconName, required this.record});
-
-  factory Room.fromRecord(RecordModel record) {
-    final icon = record.getStringValue('icon');
-    return Room(
-      id: record.id,
-      name: record.getStringValue('name'),
-      iconName: icon.isEmpty ? 'meeting_room' : icon,
-      record: record,
-    );
-  }
-
-  IconData get iconData => iconMapping[iconName] ?? Icons.meeting_room;
+enum NodeType {
+  area,      // z.B. Erdgeschoss, Garten
+  room,      // z.B. Küche, Werkstatt
+  location,  // z.B. Regal, Schrank
+  container  // z.B. Kiste, Tasche
 }
 
-class StorageLocation {
+class StorageNode {
   final String id;
   final String name;
-  final String roomId;
+  final NodeType type;
   final String iconName;
-  final String photo; // Neu: Foto für Ablageort
-  final RecordModel record;
-
-  StorageLocation({required this.id, required this.name, required this.roomId, required this.iconName, required this.photo, required this.record});
-
-  factory StorageLocation.fromRecord(RecordModel record) {
-    final icon = record.getStringValue('icon');
-    return StorageLocation(
-      id: record.id,
-      name: record.getStringValue('name'),
-      roomId: record.getStringValue('room'),
-      iconName: icon.isEmpty ? 'shelves' : icon,
-      photo: record.getStringValue('photo'),
-      record: record,
-    );
-  }
-
-  IconData get iconData => iconMapping[iconName] ?? Icons.shelves;
-}
-
-class InventoryContainer {
-  final String id;
-  final String name;
-  final String roomId;
-  final String? storageLocationId; // Optionaler Ablageort
-  final String iconName;
-  final String labelId;
   final String photo;
+  final String labelId;
+  final String? parentId;
   final RecordModel record;
 
-  InventoryContainer({
-    required this.id, 
-    required this.name, 
-    required this.roomId, 
-    this.storageLocationId,
+  StorageNode({
+    required this.id,
+    required this.name,
+    required this.type,
     required this.iconName,
-    required this.labelId,
     required this.photo,
-    required this.record
+    required this.labelId,
+    this.parentId,
+    required this.record,
   });
 
-  factory InventoryContainer.fromRecord(RecordModel record) {
-    final icon = record.getStringValue('icon');
-    return InventoryContainer(
+  factory StorageNode.fromRecord(RecordModel record) {
+    final typeString = record.getStringValue('type');
+    final type = NodeType.values.firstWhere(
+      (e) => e.name == typeString,
+      orElse: () => NodeType.container,
+    );
+
+    return StorageNode(
       id: record.id,
       name: record.getStringValue('name'),
-      roomId: record.getStringValue('room'),
-      storageLocationId: record.getStringValue('storage_location'),
-      iconName: icon.isEmpty ? 'inventory_2' : icon,
-      labelId: record.getStringValue('labelId'),
+      type: type,
+      iconName: record.getStringValue('icon'),
       photo: record.getStringValue('photo'),
+      labelId: record.getStringValue('labelId'),
+      parentId: record.getStringValue('parent'),
       record: record,
     );
   }
 
-  IconData get iconData => iconMapping[iconName] ?? Icons.inventory_2;
+  IconData get iconData {
+    if (iconName.isNotEmpty && iconMapping.containsKey(iconName)) {
+      return iconMapping[iconName]!;
+    }
+    // Fallbacks je nach Typ
+    switch (type) {
+      case NodeType.area: return Icons.domain;
+      case NodeType.room: return Icons.meeting_room;
+      case NodeType.location: return Icons.shelves;
+      case NodeType.container: return Icons.inventory_2;
+    }
+  }
+
+  /// Hilfsmethode: Darf diese Node Kinder vom Typ Node enthalten?
+  bool get canContainNodes => type != NodeType.container || true; // Container-in-Container erlaubt
+
+  /// Typschutz-Logik (wie im Test entwickelt)
+  bool canBePlacedIn(StorageNode potentialParent) {
+    if (potentialParent.id == id) return false;
+    
+    // Zirkelbezug-Schutz (Lineage-Check)
+    // Hinweis: Im echten App-Kontext müssen wir den Baum via 'expand' oder separatem Cache prüfen
+    
+    switch (type) {
+      case NodeType.area:
+        return false;
+      case NodeType.room:
+        return potentialParent.type == NodeType.area;
+      case NodeType.location:
+        return potentialParent.type == NodeType.room || potentialParent.type == NodeType.area;
+      case NodeType.container:
+        return true; // Darf fast überall rein
+    }
+  }
 }
 
 class Item {
@@ -94,7 +92,8 @@ class Item {
   final String name;
   final int quantity;
   final String photo;
-  final String? containerId;
+  final String? nodeId; // Verweis auf die neue StorageNode
+  final List<String> tagIds; // Neu: Liste der Tag-IDs
   final RecordModel? record;
 
   Item({
@@ -102,7 +101,8 @@ class Item {
     required this.name,
     required this.quantity,
     required this.photo,
-    this.containerId,
+    this.nodeId,
+    this.tagIds = const [],
     this.record,
   });
 
@@ -112,26 +112,63 @@ class Item {
       name: record.getStringValue('name'),
       quantity: record.getIntValue('quantity'),
       photo: record.getStringValue('photo'),
-      containerId: record.getStringValue('container'),
+      nodeId: record.getStringValue('node'),
+      tagIds: record.getListValue<String>('tags'),
       record: record,
     );
   }
 }
 
-// Zentrales Mapping für Icons
+class Tag {
+  final String id;
+  final String name;
+  final String color; // Hex-Code
+  final RecordModel record;
+
+  Tag({required this.id, required this.name, required this.color, required this.record});
+
+  factory Tag.fromRecord(RecordModel record) {
+    return Tag(
+      id: record.id,
+      name: record.getStringValue('name'),
+      color: record.getStringValue('color'),
+      record: record,
+    );
+  }
+
+  Color get colorData {
+    if (color.isEmpty) return Colors.grey;
+    try {
+      final hex = color.replaceAll('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return Colors.grey;
+    }
+  }
+}
+
+// Zentrales Mapping für Icons, gruppiert nach Typ für die UI
+final Map<NodeType, List<String>> iconsByType = {
+  NodeType.area: ['area', 'warehouse', 'deck', 'garage'],
+  NodeType.room: ['meeting_room', 'kitchen', 'weekend', 'bed', 'build', 'garage', 'warehouse', 'deck'],
+  NodeType.location: ['shelves', 'door_sliding', 'home_repair_service'],
+  NodeType.container: ['inventory_2', 'archive', 'shopping_basket'],
+};
+
 final Map<String, IconData> iconMapping = {
+  'area': Icons.domain,
   'meeting_room': Icons.meeting_room,
   'kitchen': Icons.kitchen,
   'garage': Icons.garage,
-  'weekend': Icons.weekend, // Wohnzimmer
+  'weekend': Icons.weekend,
   'bed': Icons.bed,
-  'build': Icons.build, // Werkstatt
-  'warehouse': Icons.warehouse, // Keller
-  'deck': Icons.deck, // Terrasse/Garten
+  'build': Icons.build,
+  'warehouse': Icons.warehouse,
+  'deck': Icons.deck,
   'inventory_2': Icons.inventory_2,
   'archive': Icons.archive,
   'shopping_basket': Icons.shopping_basket,
-  'shelves': Icons.shelves, // Neues Icon für Ablageort
-  'door_sliding': Icons.door_sliding, // Schrank
-  'home_repair_service': Icons.home_repair_service, // Werkbank
+  'shelves': Icons.shelves,
+  'door_sliding': Icons.door_sliding,
+  'home_repair_service': Icons.home_repair_service,
 };

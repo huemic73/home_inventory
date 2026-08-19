@@ -30,7 +30,17 @@ Aktuell werden Artikel als unteilbare Einheiten behandelt. Ziel ist eine dynamis
 
 ---
 
-## 3. UX & Interaktion
+## 3. Tagging & Kategorisierung (Umgesetzt)
+Zusätzlich zur physischen Hierarchie können Artikel nun mit Tags versehen werden.
+
+### Features
+- **Farbig markierte Tags:** Jeder Tag kann eine eigene Farbe haben.
+- **Suche nach Tags:** Die globale Suche findet Artikel nun auch über ihre Schlagworte.
+- **Mehrfach-Zuweisung:** Ein Artikel kann beliebig viele Tags haben (z.B. "Camping" und "Werkzeug").
+
+---
+
+## 4. UX & Interaktion
 - **Breadcrumbs:** Navigationspfad oben in der Leiste, um bei tiefen Verschachtelungen die Orientierung zu behalten.
 - **Schnellentnahme:** Ein-Klick-Buttons in der Artikelliste, um Bestände sofort zu reduzieren (Verbrauchsmaterial).
 - **QR-Ketten:** Scannen eines Regals zeigt sofort die Liste aller darin enthaltenen Boxen ("Digitales Fenster").

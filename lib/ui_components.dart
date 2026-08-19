@@ -68,6 +68,19 @@ class InventoryPageLayout extends StatelessWidget {
     this.floatingActionButton,
   });
 
+  double _calculateHeaderHeight(Widget? bar, List<Widget>? chips, String? title) {
+    double h = 20.0; // Basis-Padding
+    if (bar != null) h += 72.0; // Suche
+    if (chips != null) h += 48.0; // Tag-Chips
+    if (title != null) h += 30.0; // Sektionstitel
+    
+    // Abstände zwischen den Zeilen
+    if (bar != null && (chips != null || title != null)) h += 12.0;
+    if (chips != null && title != null) h += 12.0;
+    
+    return h;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -148,10 +161,8 @@ class InventoryPageLayout extends StatelessWidget {
                 pinned: true,
                 delegate: _StickyHeaderDelegate(
                   isDark: isDark,
-                  // Höhen-Logik verfeinert: 130 wenn Suche+Titel, 120 wenn Chips+Titel, sonst 80
-                  height: (filterBar != null && sectionTitle != null) 
-                      ? 130 
-                      : (filterBar != null ? 90 : ((filterChips != null && sectionTitle != null) ? 120 : 80)),
+                  // Dynamische Höhenberechnung basierend auf den vorhandenen Elementen
+                  height: _calculateHeaderHeight(filterBar, filterChips, sectionTitle),
                   child: Container(
                     color: Theme.of(context).scaffoldBackgroundColor.withAlpha(250),
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -159,16 +170,20 @@ class InventoryPageLayout extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (filterBar case final Widget bar) bar,
-                        if (filterChips case final List<Widget> chips)
+                        if (filterBar != null) ...[
+                          filterBar!,
+                          if (filterChips != null || sectionTitle != null) const SizedBox(height: 12),
+                        ],
+                        if (filterChips != null) ...[
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: chips,
+                              children: filterChips!,
                             ),
                           ),
-                        if ((filterChips != null || filterBar != null) && sectionTitle != null) const SizedBox(height: 12),
+                          if (sectionTitle != null) const SizedBox(height: 12),
+                        ],
                         if (sectionTitle != null)
                           Text(
                             sectionTitle!,
@@ -221,12 +236,16 @@ class InventoryForm extends StatefulWidget {
   final int? initialQuantity;
   final String? initialIcon;
   final String? initialLabelId;
+  final NodeType? initialType;
+  final List<String>? initialTagIds;
   final bool showQuantity;
   final bool showIcons;
   final bool showQrScanner;
+  final bool showTypeSelector;
+  final bool showTagSelector;
   final List<String>? availableIcons;
   final PocketBase pb;
-  final Function(String name, int quantity, XFile? imageFile, String icon, String labelId) onSave;
+  final Function(String name, int quantity, XFile? imageFile, String icon, String labelId, NodeType type, List<String> tagIds) onSave;
 
   const InventoryForm({
     super.key,
@@ -236,9 +255,13 @@ class InventoryForm extends StatefulWidget {
     this.initialQuantity,
     this.initialIcon,
     this.initialLabelId,
+    this.initialType,
+    this.initialTagIds,
     this.showQuantity = false,
     this.showIcons = false,
     this.showQrScanner = false,
+    this.showTypeSelector = false,
+    this.showTagSelector = false,
     this.availableIcons,
     required this.pb,
     required this.onSave,
@@ -253,6 +276,9 @@ class _InventoryFormState extends State<InventoryForm> {
   late TextEditingController _quantityController;
   late String _selectedIcon;
   late String _currentLabelId;
+  late NodeType _selectedType;
+  late List<String> _selectedTagIds;
+  List<Tag> _allTags = [];
   XFile? _pickedFile;
 
   @override
@@ -262,6 +288,120 @@ class _InventoryFormState extends State<InventoryForm> {
     _quantityController = TextEditingController(text: (widget.initialQuantity ?? 1).toString());
     _selectedIcon = widget.initialIcon ?? (widget.availableIcons?.first ?? 'inventory_2');
     _currentLabelId = widget.initialLabelId ?? '';
+    _selectedType = widget.initialType ?? NodeType.container;
+    _selectedTagIds = List.from(widget.initialTagIds ?? []);
+    if (widget.showTagSelector) {
+      _fetchTags();
+    }
+  }
+
+  Future<void> _fetchTags() async {
+    try {
+      final records = await widget.pb.collection('tags').getFullList(sort: 'name');
+      setState(() {
+        _allTags = records.map((r) => Tag.fromRecord(r)).toList();
+      });
+    } catch (e) {
+      debugPrint('Fehler beim Laden der Tags: $e');
+    }
+  }
+
+  Future<void> _createNewTag() async {
+    final controller = TextEditingController();
+    String selectedColorHex = '3F51B5'; // Default indigo
+
+    final List<Map<String, String>> colorOptions = [
+      {'name': 'Indigo', 'hex': '3F51B5'},
+      {'name': 'Rot', 'hex': 'E53935'},
+      {'name': 'Grün', 'hex': '43A047'},
+      {'name': 'Orange', 'hex': 'FB8C00'},
+      {'name': 'Türkis', 'hex': '00ACC1'},
+      {'name': 'Lila', 'hex': '8E24AA'},
+      {'name': 'Bernstein', 'hex': 'FFB300'},
+      {'name': 'Blaugrau', 'hex': '546E7A'},
+    ];
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Neuen Tag erstellen'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Tag Name',
+                  hintText: 'z.B. Camping, Werkzeug...',
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 24),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Farbe wählen:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: colorOptions.map((color) {
+                  final isSelected = selectedColorHex == color['hex'];
+                  final Color circleColor = Color(int.parse('FF${color['hex']}', radix: 16));
+                  return GestureDetector(
+                    onTap: () => setDialogState(() => selectedColorHex = color['hex']!),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: circleColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? Colors.black : Colors.transparent,
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          if (isSelected) 
+                            BoxShadow(color: circleColor.withAlpha(100), blurRadius: 8, spreadRadius: 2)
+                        ],
+                      ),
+                      child: isSelected 
+                          ? const Icon(Icons.check, color: Colors.white, size: 20) 
+                          : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+            FilledButton(
+              onPressed: () async {
+                if (controller.text.trim().isNotEmpty) {
+                  try {
+                    final record = await widget.pb.collection('tags').create(body: {
+                      'name': controller.text.trim(),
+                      'color': selectedColorHex,
+                    });
+                    final newTag = Tag.fromRecord(record);
+                    setState(() {
+                      _allTags.add(newTag);
+                      _selectedTagIds.add(newTag.id);
+                    });
+                    if (context.mounted) Navigator.pop(context);
+                  } catch (e) {
+                    debugPrint('Tag-Erstellung fehlgeschlagen: $e');
+                  }
+                }
+              },
+              child: const Text('Erstellen'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -340,6 +480,29 @@ class _InventoryFormState extends State<InventoryForm> {
                 ),
               ),
               const SizedBox(height: 32),
+              if (widget.showTypeSelector) ...[
+                DropdownButtonFormField<NodeType>(
+                  initialValue: _selectedType,
+                  decoration: InputDecoration(
+                    labelText: 'Typ des Elements',
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withAlpha(5) : Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                  ),
+                  items: NodeType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.name.toUpperCase()))).toList(),
+                  onChanged: (val) {
+                    setState(() {
+                      _selectedType = val!;
+                      // Standard-Icon für diesen Typ setzen, falls das aktuelle nicht passt
+                      final available = iconsByType[_selectedType] ?? [];
+                      if (!available.contains(_selectedIcon)) {
+                        _selectedIcon = available.first;
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
               _buildFormTextField(controller: _nameController, label: 'Name', icon: Icons.label_outline, isDark: isDark),
               if (widget.showQuantity) ...[const SizedBox(height: 16), _buildFormTextField(controller: _quantityController, label: 'Anzahl', icon: Icons.numbers, isDark: isDark, keyboardType: TextInputType.number)],
               if (widget.showQrScanner) ...[
@@ -357,18 +520,109 @@ class _InventoryFormState extends State<InventoryForm> {
                   ),
                 ),
               ],
-              if (widget.showIcons && widget.availableIcons != null) ...[
+              if (widget.showIcons) ...[
                 const SizedBox(height: 32),
                 Align(alignment: Alignment.centerLeft, child: Text('Symbol wählen', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54))),
                 const SizedBox(height: 12),
-                Align(alignment: Alignment.centerLeft, child: Wrap(spacing: 12, runSpacing: 12, children: widget.availableIcons!.map((key) => GestureDetector(onTap: () => setState(() => _selectedIcon = key), child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: _selectedIcon == key ? Theme.of(context).colorScheme.primary : (isDark ? Colors.white.withAlpha(10) : Colors.grey.withAlpha(20)), borderRadius: BorderRadius.circular(16), border: Border.all(color: _selectedIcon == key ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2)), child: Icon(iconMapping[key], size: 28, color: _selectedIcon == key ? Colors.white : (isDark ? Colors.white60 : Colors.black45))))).toList())),
+                Align(
+                  alignment: Alignment.centerLeft, 
+                  child: Wrap(
+                    spacing: 12, runSpacing: 12, 
+                    children: (iconsByType[_selectedType] ?? []).map((key) => GestureDetector(
+                      onTap: () => setState(() => _selectedIcon = key), 
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200), 
+                        padding: const EdgeInsets.all(12), 
+                        decoration: BoxDecoration(
+                          color: _selectedIcon == key ? Theme.of(context).colorScheme.primary : (isDark ? Colors.white.withAlpha(10) : Colors.grey.withAlpha(20)), 
+                          borderRadius: BorderRadius.circular(16), 
+                          border: Border.all(color: _selectedIcon == key ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2)
+                        ), 
+                        child: Icon(iconMapping[key] ?? Icons.help_outline, size: 28, color: _selectedIcon == key ? Colors.white : (isDark ? Colors.white60 : Colors.black45))
+                      )
+                    )).toList()
+                  )
+                ),
+              ],
+              if (widget.showTagSelector) ...[
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Tags', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54)),
+                    TextButton.icon(
+                      onPressed: _createNewTag, 
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Neu', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _allTags.map((tag) {
+                      final isSelected = _selectedTagIds.contains(tag.id);
+                      return GestureDetector(
+                        onLongPress: () => _confirmDeleteTag(tag),
+                        child: FilterChip(
+                          label: Text(tag.name, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : null)),
+                          selected: isSelected,
+                          selectedColor: tag.colorData,
+                          onSelected: (val) {
+                            setState(() {
+                              if (val) {
+                                _selectedTagIds.add(tag.id);
+                              } else {
+                                _selectedTagIds.remove(tag.id);
+                              }
+                            });
+                          },
+                          showCheckmark: false,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ],
             ],
           ),
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')), FilledButton(onPressed: () { if (_nameController.text.isNotEmpty) { widget.onSave(_nameController.text.trim(), int.tryParse(_quantityController.text) ?? 1, _pickedFile, _selectedIcon, _currentLabelId); } }, style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)), child: const Text('Speichern', style: TextStyle(fontWeight: FontWeight.bold)))],
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')), FilledButton(onPressed: () { if (_nameController.text.isNotEmpty) { widget.onSave(_nameController.text.trim(), int.tryParse(_quantityController.text) ?? 1, _pickedFile, _selectedIcon, _currentLabelId, _selectedType, _selectedTagIds); } }, style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)), child: const Text('Speichern', style: TextStyle(fontWeight: FontWeight.bold)))],
     );
+  }
+
+  Future<void> _confirmDeleteTag(Tag tag) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tag löschen?'),
+        content: Text('Möchtest du den Tag "${tag.name}" wirklich systemweit löschen? Er wird von allen Artikeln entfernt.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: const Text('Löschen', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await widget.pb.collection('tags').delete(tag.id);
+        setState(() {
+          _allTags.removeWhere((t) => t.id == tag.id);
+          _selectedTagIds.remove(tag.id);
+        });
+      } catch (e) {
+        debugPrint('Fehler beim Löschen des Tags: $e');
+      }
+    }
   }
 
   Widget _buildFormTextField({required TextEditingController controller, required String label, required IconData icon, required bool isDark, TextInputType keyboardType = TextInputType.text}) {

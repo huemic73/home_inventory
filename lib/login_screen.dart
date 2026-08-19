@@ -115,6 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
+      debugPrint('Login-Fehler Details: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Login fehlgeschlagen: $e'), backgroundColor: Colors.red),

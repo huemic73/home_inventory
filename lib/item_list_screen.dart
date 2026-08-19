@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
@@ -10,17 +9,13 @@ import 'ui_components.dart';
 
 class ItemListScreen extends StatefulWidget {
   final PocketBase pb;
-  final InventoryContainer? container;
-  final Room? room;
-  final StorageLocation? storageLocation;
+  final StorageNode? node;
   final bool onlyUnassigned;
 
   const ItemListScreen({
     super.key, 
     required this.pb, 
-    this.container, 
-    this.room, 
-    this.storageLocation,
+    this.node, 
     this.onlyUnassigned = false
   });
 
@@ -46,10 +41,10 @@ class _ItemListScreenState extends State<ItemListScreen> {
 
   Future<List<Item>> _fetchItems() async {
     List<String> filters = [];
-    if (widget.container != null) {
-      filters.add('container = "${widget.container!.id}"');
+    if (widget.node != null) {
+      filters.add('node = "${widget.node!.id}"');
     } else if (widget.onlyUnassigned && _searchQuery.isEmpty) {
-      filters.add('container = ""');
+      filters.add('node = ""');
     }
     if (_searchQuery.isNotEmpty) {
       filters.add('name ~ "$_searchQuery"');
@@ -57,7 +52,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
     final records = await widget.pb.collection('items').getFullList(
       filter: filters.isEmpty ? null : filters.join(' && '),
       sort: '-created',
-      expand: 'container,container.room,container.storage_location',
+      expand: 'node,tags',
     );
     return records.map((record) => Item.fromRecord(record)).toList();
   }
@@ -66,18 +61,13 @@ class _ItemListScreenState extends State<ItemListScreen> {
   Widget build(BuildContext context) {
     String title = 'Gegenstände';
     String? subtitle;
-    String? containerImageUrl;
+    String? imageUrl;
 
-    if (widget.container != null) {
-      title = widget.container!.name;
-      if (widget.room != null) {
-        subtitle = 'In: ${widget.room!.name}';
-        if (widget.storageLocation != null) {
-          subtitle += ' > ${widget.storageLocation!.name}';
-        }
-      }
-      if (widget.container!.photo.isNotEmpty) {
-        containerImageUrl = widget.pb.files.getUrl(widget.container!.record, widget.container!.photo).toString();
+    if (widget.node != null) {
+      title = widget.node!.name;
+      subtitle = 'In: ${widget.node!.type.name.toUpperCase()}';
+      if (widget.node!.photo.isNotEmpty) {
+        imageUrl = widget.pb.files.getUrl(widget.node!.record, widget.node!.photo).toString();
       }
     } else if (widget.onlyUnassigned) {
       title = 'Ohne Zuordnung';
@@ -86,19 +76,19 @@ class _ItemListScreenState extends State<ItemListScreen> {
     return InventoryPageLayout(
       title: title,
       subtitle: subtitle,
-      imageUrl: containerImageUrl,
+      imageUrl: imageUrl,
       actions: [
-        if (widget.container != null)
+        if (widget.node != null)
           IconButton(
             icon: const Icon(Icons.qr_code),
-            tooltip: 'Box QR-Code anzeigen',
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => QrDisplayScreen(container: widget.container!))),
+            tooltip: 'QR-Code anzeigen',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => QrDisplayScreen(container: widget.node))),
           ),
         const SizedBox(width: 16),
       ],
       filterBar: SearchBar(
         controller: _searchController,
-        hintText: 'In dieser Box suchen...',
+        hintText: 'Suchen...',
         leading: const Icon(Icons.search, size: 20),
         elevation: WidgetStateProperty.all(0),
         backgroundColor: WidgetStateProperty.all(Theme.of(context).cardTheme.color),
@@ -108,7 +98,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
           _refreshItems();
         },
       ),
-      sectionTitle: 'Inhalt der Box',
+      sectionTitle: 'Artikel-Liste',
       floatingActionButton: _buildFab(context),
       slivers: [
         SliverToBoxAdapter(
@@ -125,7 +115,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
               if (items.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.only(top: 100),
-                  child: Center(child: Text('Diese Box ist momentan leer.')),
+                  child: Center(child: Text('Hier ist momentan nichts zu finden.')),
                 );
               }
 
@@ -152,6 +142,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
       imageUrl = widget.pb.files.getUrl(item.record!, item.photo).toString();
     }
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tags = item.record?.get<List<RecordModel>?>('expand.tags') ?? [];
 
     return Container(
       decoration: BoxDecoration(color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(24), boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))]),
@@ -166,7 +157,33 @@ class _ItemListScreenState extends State<ItemListScreen> {
           ),
         ),
         title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${item.quantity} Stück', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200))),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${item.quantity} Stück', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200))),
+            if (tags.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: tags.map((t) {
+                  final tag = Tag.fromRecord(t);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: tag.colorData.withAlpha(20),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      tag.name,
+                      style: TextStyle(color: tag.colorData, fontSize: 8, fontWeight: FontWeight.bold),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
         trailing: const Icon(Icons.chevron_right, size: 20),
         onTap: () async {
           await Navigator.push(context, MaterialPageRoute(builder: (context) => ItemDetailScreen(item: item, pb: widget.pb)));
@@ -181,13 +198,13 @@ class _ItemListScreenState extends State<ItemListScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.container != null) ...[
+        if (widget.node != null) ...[
           StandardFab(
             heroTag: 'pick_existing',
             label: 'Bestehende wählen',
             icon: Icons.playlist_add,
             onPressed: () async {
-              final res = await Navigator.push(context, MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetContainer: widget.container!)));
+              final res = await Navigator.push(context, MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: widget.node!)));
               if (res == true) {
                 _refreshItems();
               }
@@ -208,30 +225,27 @@ class _ItemListScreenState extends State<ItemListScreen> {
       builder: (context) => InventoryForm(
         title: 'Neuer Artikel',
         showQuantity: true,
+        showTagSelector: true,
         pb: widget.pb,
-        onSave: (name, quantity, imageFile, icon, labelId) async {
-          final Map<String, dynamic> body = {'name': name, 'quantity': quantity};
-          if (widget.container != null) {
-            body['container'] = widget.container!.id;
+        onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
+          final Map<String, dynamic> body = {
+            'name': name, 
+            'quantity': quantity,
+            'tags': tagIds,
+          };
+          if (widget.node != null) {
+            body['node'] = widget.node!.id;
           }
           List<http.MultipartFile> files = [];
           if (imageFile != null) {
-            if (kIsWeb) {
-              files.add(http.MultipartFile.fromBytes('photo', await imageFile.readAsBytes(), filename: imageFile.name));
-            } else {
-              files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
-            }
+            files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
           }
           try {
             await widget.pb.collection('items').create(body: body, files: files);
-            if (context.mounted) {
-              Navigator.pop(context);
-            }
+            if (context.mounted) Navigator.pop(context);
             _refreshItems();
           } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
-            }
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
           }
         },
       ),

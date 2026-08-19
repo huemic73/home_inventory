@@ -15,7 +15,7 @@ class BulkQrPrintScreen extends StatefulWidget {
 }
 
 class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
-  List<InventoryContainer> _allContainers = [];
+  List<StorageNode> _allContainers = [];
   final Set<String> _selectedIds = {};
   bool _isLoading = true;
 
@@ -26,12 +26,13 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
   }
 
   Future<void> _loadContainers() async {
-    final records = await widget.pb.collection('containers').getFullList(
+    final records = await widget.pb.collection('nodes').getFullList(
+      filter: 'type = "container"',
       sort: 'name', 
-      expand: 'room,storage_location'
+      expand: 'parent'
     );
     setState(() {
-      _allContainers = records.map((r) => InventoryContainer.fromRecord(r)).toList();
+      _allContainers = records.map((r) => StorageNode.fromRecord(r)).toList();
       _selectedIds.addAll(_allContainers.map((c) => c.id));
       _isLoading = false;
     });
@@ -42,10 +43,10 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
       final doc = pw.Document();
       final containersToPrint = _allContainers.where((c) => _selectedIds.contains(c.id)).toList();
 
-      final Map<String, List<InventoryContainer>> grouped = {};
+      final Map<String, List<StorageNode>> grouped = {};
       for (var c in containersToPrint) {
-        final roomName = c.record.get<RecordModel?>('expand.room')?.getStringValue('name') ?? 'Unbekannter Ort';
-        grouped.putIfAbsent(roomName, () => []).add(c);
+        final parentName = c.record.get<RecordModel?>('expand.parent')?.getStringValue('name') ?? 'Hauptebene';
+        grouped.putIfAbsent(parentName, () => []).add(c);
       }
 
       doc.addPage(
@@ -58,11 +59,11 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
               pw.SizedBox(height: 20),
             ];
 
-            grouped.forEach((roomName, containers) {
+            grouped.forEach((groupName, containers) {
               widgets.add(
                 pw.Padding(
                   padding: const pw.EdgeInsets.symmetric(vertical: 10),
-                  child: pw.Text('Raum: $roomName', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.indigo900)),
+                  child: pw.Text('Standort: $groupName', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.indigo900)),
                 ),
               );
 
@@ -70,12 +71,6 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                 pw.Wrap(
                   spacing: 15, runSpacing: 15,
                   children: containers.map((container) {
-                    String locationText = roomName;
-                    final locRecord = container.record.get<RecordModel?>('expand.storage_location');
-                    if (locRecord != null) {
-                      locationText += ' > ${locRecord.getStringValue('name')}';
-                    }
-
                     final String qrData = '$qrBaseUrl/c/${container.id}';
 
                     return pw.Container(
@@ -87,7 +82,7 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                         children: [
                           pw.Text(container.name, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center, maxLines: 2),
                           pw.SizedBox(height: 4),
-                          pw.Text(locationText, style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700), textAlign: pw.TextAlign.center),
+                          pw.Text(groupName, style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700), textAlign: pw.TextAlign.center),
                           pw.SizedBox(height: 8),
                           pw.BarcodeWidget(
                             barcode: pw.Barcode.qrCode(errorCorrectLevel: pw.BarcodeQRCorrectionLevel.high), 
