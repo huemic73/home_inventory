@@ -1,36 +1,32 @@
-# Heiminventarisierung (Home Inventory)
+# Heiminventarisierung (Home Inventory) v2.0
 
-Eine moderne, hierarchische Flutter-Anwendung zur Inventarverwaltung für zuhause. Organisiere deine Werkzeuge, Vorräte oder Sammlungen mit Fotos, QR-Codes und einer klaren Struktur.
+Eine moderne, rekursive Flutter-Anwendung zur Inventarverwaltung für zuhause. Organisiere deine Werkzeuge, Vorräte oder Sammlungen mit Fotos, QR-Codes und einer extrem flexiblen Struktur.
 
 ![Design](https://img.shields.io/badge/Design-Modern%20Blue-blue)
 ![Flutter](https://img.shields.io/badge/Framework-Flutter%203-02569B?logo=flutter)
 ![PocketBase](https://img.shields.io/badge/Backend-PocketBase-ADDEFF?logo=sqlite)
 
-## 🚀 Features
+## 🚀 Features (v2.0)
 
-- **Vierstufige Hierarchie:** Organisiere alles nach **Raum** > **Ablageort** (Regal/Schrank) > **Container** (Box) > **Artikel**.
-- **Sticky UX:** Suchleisten und Filter "kleben" beim Scrollen am oberen Rand, um die Kontrolle jederzeit griffbereit zu halten.
+- **Rekursive Hierarchie:** Schluss mit starren Ebenen! Organisiere dein Haus in beliebiger Tiefe: **Bereich** > **Raum** > **Regal** > **Reihe** > **Box** > **Kleine Kiste** > **Artikel**.
+- **Systemweites Tagging:** Markiere Artikel mit frei definierbaren, farbigen Schlagworten (z.B. "Camping", "Werkzeug", "Apple"). Ein Artikel kann beliebig viele Tags haben.
+- **Sticky UX & Dynamische Header:** Suchleisten und Tag-Filter passen ihre Höhe automatisch an und "kleben" beim Scrollen am oberen Rand.
 - **Intelligentes QR-System:** 
-  - Scanne Boxen, um sofort den Inhalt zu sehen ("digitales Fenster").
+  - Scanne Boxen oder Artikel, um sofort Details zu sehen.
   - **Label-Recycling:** Weise bereits gedruckten Etiketten erst beim Bekleben neue Container zu.
-- **Visuelle Erfassung:** Unterstützung für Fotos auf jeder Ebene (Ablageort, Container, Artikel) inklusive großer Header-Bilder.
-- **Globale Suche:** Blitzschnelle Suche über das gesamte Inventar mit vollständiger Pfadanzeige.
-- **Inventurhilfe:** Generiere strukturierte PDF-Listen aller Container, gruppiert nach Standorten, inklusive QR-Codes.
-- **Benutzerverwaltung:** Sicherer Login-Bereich mit Profilverwaltung und Passwort-Änderung.
-- **Theme-Support:** Volle Unterstützung für **Light Mode**, **Dark Mode** und Systemstandard (persistente Speicherung).
-- **Sicherheit & Komfort:** 
-  - **Biometrischer Login:** Schütze den App-Start mit Fingerabdruck oder FaceID (aktivierbar im Profil).
-  - **Persistente Anmeldung:** Melde dich einmal an und bleibe eingeloggt, ohne jedes Mal das Passwort tippen zu müssen.
-  - **Smart Lock:** Automatischer Sperrbildschirm bei abgebrochener Biometrie-Abfrage.
+- **Optimiertes Verschieben:** Verschiebe Boxen oder Artikel mit einer integrierten Echtzeit-Suche und Zirkelbezug-Schutz.
+- **Profi-Suche:** Suche gleichzeitig nach Namen und mehreren Tags (AND-Verknüpfung).
+- **Visuelle Erfassung:** Unterstützung für Fotos auf jeder Ebene inklusive großer Header-Bilder und automatischer Kontrastanpassung.
+- **Inventurhilfe:** Generiere strukturierte PDF-Listen aller Container inklusive QR-Codes.
+- **Sicherheit:** Biometrischer Login (Fingerabdruck/FaceID) und persistente Sitzungen.
 
 ## 🛠 Tech-Stack & Architektur
 
 - **Frontend:** Flutter (Material 3)
 - **Backend:** [PocketBase](https://pocketbase.io)
-- **Design-System:** "Modern Blue" Theme mit der Schriftart "Outfit".
-- **Component-based Design:** Alle zentralen UI-Elemente (`StandardFab`, `InventoryForm`, `InventoryPageLayout`) sind in `lib/ui_components.dart` zentralisiert.
-- **Sicherer Auth-Store:** Eigener `SharedPreferencesAuthStore` sorgt für die dauerhafte Speicherung der Sitzung auf dem Gerät.
-- **Adaptive UI:** Kontraste und Farben passen sich dynamisch an (z.B. automatische Textfarbe in der Kopfzeile je nach Hintergrund).
+- **Modell:** Einheitliches `StorageNode`-System für rekursive Verschachtelung.
+- **Logik:** Rekursive Berechnung von Artikelbeständen über alle Unterebenen hinweg.
+- **Component-based Design:** Alle zentralen UI-Elemente sind in `lib/ui_components.dart` zentralisiert.
 
 ---
 
@@ -42,19 +38,17 @@ Eine moderne, hierarchische Flutter-Anwendung zur Inventarverwaltung für zuhaus
 2. Starte den Server: `./pocketbase serve --http="0.0.0.0:8090"`.
 3. Erstelle folgende Collections:
 
-| Collection | Felder | API Rules (Auth) |
+| Collection | Wichtige Felder | API Rules (Auth) |
 | :--- | :--- | :--- |
-| `rooms` | `name`, `icon` | `@request.auth.id != ""` |
-| `storage_locations` | `name`, `room` (Rel), `icon`, `photo` (File) | `@request.auth.id != ""` |
-| `containers` | `name`, `room` (Rel), `storage_location` (Rel), `icon`, `labelId`, `photo` | `@request.auth.id != ""` |
-| `items` | `name`, `quantity`, `photo`, `container` (Rel) | `@request.auth.id != ""` |
+| `nodes` | `name`, `type` (area,room,location,container), `parent` (Rel to nodes), `icon`, `photo`, `labelId` | `@request.auth.id != ""` |
+| `items` | `name`, `quantity`, `node` (Rel to nodes), `tags` (Rel to tags), `photo` | `@request.auth.id != ""` |
+| `tags` | `name`, `color` (Hex) | `@request.auth.id != ""` |
 
 ### 2. Flutter App konfigurieren
 
 1. `flutter pub get`.
-2. **Netzwerk:** In `lib/main.dart` die Variable `pcIp` auf die lokale IPv4-Adresse deines PCs setzen (für Android-Devices).
+2. **Netzwerk:** In `lib/main.dart` die Variable `pcIp` auf die lokale IPv4-Adresse deines PCs setzen (für Android-Geräte).
 3. **Build:** `flutter run` (minSdk 21).
-   - *Hinweis für Android:* Die App nutzt `FlutterFragmentActivity` für Biometrie-Support.
 
 ---
 
