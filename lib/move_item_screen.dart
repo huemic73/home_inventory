@@ -14,6 +14,9 @@ class MoveItemScreen extends StatefulWidget {
 
 class _MoveItemScreenState extends State<MoveItemScreen> {
   late Future<List<StorageNode>> _nodesFuture;
+  List<StorageNode> _allNodes = [];
+  List<StorageNode> _filteredNodes = [];
+  String _searchQuery = '';
   String? _selectedNodeId;
   bool _isSaving = false;
 
@@ -26,7 +29,18 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
 
   Future<List<StorageNode>> _fetchNodes() async {
     final records = await widget.pb.collection('nodes').getFullList(sort: 'name');
-    return records.map((r) => StorageNode.fromRecord(r)).toList();
+    _allNodes = records.map((r) => StorageNode.fromRecord(r)).toList();
+    _filteredNodes = List.from(_allNodes);
+    return _allNodes;
+  }
+
+  void _filterList(String query) {
+    setState(() {
+      _searchQuery = query.toLowerCase();
+      _filteredNodes = _allNodes.where((node) {
+        return node.name.toLowerCase().contains(_searchQuery);
+      }).toList();
+    });
   }
 
   Future<void> _saveMove() async {
@@ -49,47 +63,109 @@ class _MoveItemScreenState extends State<MoveItemScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
-        title: const Text('Artikel verschieben'),
+        title: const Text('Artikel verschieben', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            Text('Wähle einen neuen Ort für ${widget.item.name}:', style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
-            FutureBuilder<List<StorageNode>>(
+      body: Column(
+        children: [
+          // Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Colors.grey.withAlpha(30)))),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Verschiebe Artikel:', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(widget.item.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+
+          // Suche
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Nach neuem Ort suchen...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              ),
+              onChanged: _filterList,
+            ),
+          ),
+
+          // Liste
+          Expanded(
+            child: FutureBuilder<List<StorageNode>>(
               future: _nodesFuture,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final nodes = snapshot.data!;
-                return Container(
+
+                return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                  child: DropdownButtonFormField<String?>(
-                    initialValue: _selectedNodeId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(border: InputBorder.none),
-                    items: [
-                      const DropdownMenuItem<String?>(value: '', child: Text('Lose (keinem Ort zugeordnet)')),
-                      ...nodes.map((n) => DropdownMenuItem<String?>(
-                        value: n.id,
-                        child: Text('${n.type.name.toUpperCase()}: ${n.name}')
-                      )),
-                    ],
-                    onChanged: (val) => setState(() => _selectedNodeId = val),
-                  ),
+                  itemCount: _filteredNodes.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return _buildTargetTile(null, 'Lose (keinem Ort zugeordnet)', Icons.inventory_2_outlined);
+                    }
+                    final node = _filteredNodes[index - 1];
+                    return _buildTargetTile(node.id, node.name, node.iconData, type: node.type.name.toUpperCase());
+                  },
                 );
               },
             ),
-            const SizedBox(height: 48),
-            SizedBox(
+          ),
+
+          // Footer
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: _isSaving ? null : _saveMove,
-                child: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text('Speichern'),
+                style: FilledButton.styleFrom(padding: const EdgeInsets.all(20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+                child: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text('Speichern & Verschieben'),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTargetTile(String? id, String title, IconData icon, {String? type}) {
+    final isSelected = _selectedNodeId == (id ?? '');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => setState(() => _selectedNodeId = id ?? ''),
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isSelected ? Theme.of(context).colorScheme.primaryContainer : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (type != null) Text(type, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    Text(title, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 16)),
+                  ],
+                ),
+              ),
+              if (isSelected) Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary),
+            ],
+          ),
         ),
       ),
     );

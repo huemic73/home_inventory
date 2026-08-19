@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'container_list_screen.dart';
 import 'item_list_screen.dart';
@@ -61,6 +62,8 @@ class _RoomListScreenState extends State<RoomListScreen> {
     final Set<String> occupied = {};
 
     int calculateRecursive(String nodeId) {
+      if (totalCounts.containsKey(nodeId)) return totalCounts[nodeId]!;
+
       int count = nodeDirectItems[nodeId] ?? 0;
       final children = parentToChildren[nodeId] ?? [];
       for (var childId in children) {
@@ -231,9 +234,16 @@ class _RoomListScreenState extends State<RoomListScreen> {
 
   Widget _buildNodeCard(BuildContext context, StorageNode node) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    String imageUrl = node.photo.isNotEmpty 
+        ? widget.pb.files.getUrl(node.record, node.photo).toString() 
+        : '';
 
     return Container(
-      decoration: BoxDecoration(color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(32), boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 4))]),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color, 
+        borderRadius: BorderRadius.circular(32), 
+        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 4))]
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -250,7 +260,16 @@ class _RoomListScreenState extends State<RoomListScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(20), borderRadius: BorderRadius.circular(16)), child: Icon(node.iconData, color: Theme.of(context).colorScheme.primary, size: 28)),
+                    Container(
+                      width: 60, height: 60,
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(20), borderRadius: BorderRadius.circular(16)),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: imageUrl.isNotEmpty 
+                          ? Image.network(imageUrl, fit: BoxFit.cover) 
+                          : Icon(node.iconData, color: Theme.of(context).colorScheme.primary, size: 28),
+                      ),
+                    ),
                     PopupMenuButton<String>(
                       icon: const Icon(Icons.more_horiz), 
                       onSelected: (val) async { 
@@ -275,7 +294,11 @@ class _RoomListScreenState extends State<RoomListScreen> {
                   ],
                 ),
                 const Spacer(),
-                Text(node.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)),
+                Text(
+                  node.name.isEmpty ? 'Unbenannter Bereich' : node.name, 
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 4),
                 Text(
                   '${_totalItemCounts[node.id] ?? 0} Artikel · ${_childNodeCounts[node.id] ?? 0} Unterelemente', 
@@ -299,7 +322,6 @@ class _RoomListScreenState extends State<RoomListScreen> {
         initialType: node?.type ?? NodeType.area,
         showIcons: true,
         showTypeSelector: true, // Erlaube Wahl zwischen AREA und ROOM
-        availableIcons: const ['area', 'meeting_room', 'weekend', 'deck', 'garage'],
         pb: widget.pb,
         onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
           final data = {
@@ -308,12 +330,19 @@ class _RoomListScreenState extends State<RoomListScreen> {
             'type': type.name,
             'parent': '',
           };
-          // Wenn wir bearbeiten, behalten wir den Typ bei
           if (node != null) data['type'] = node.type.name;
 
+          List<http.MultipartFile> files = [];
+          if (imageFile != null) {
+            files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+          }
+
           try {
-            if (node == null) { await widget.pb.collection('nodes').create(body: data); }
-            else { await widget.pb.collection('nodes').update(node.id, body: data); }
+            if (node == null) { 
+              await widget.pb.collection('nodes').create(body: data, files: files); 
+            } else { 
+              await widget.pb.collection('nodes').update(node.id, body: data, files: files); 
+            }
             if (context.mounted) Navigator.pop(context);
             _refreshNodes();
           } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e'))); }

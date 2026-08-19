@@ -31,9 +31,24 @@ class _MoveContainerScreenState extends State<MoveContainerScreen> {
     final records = await widget.pb.collection('nodes').getFullList(sort: 'name');
     final allNodes = records.map((r) => StorageNode.fromRecord(r)).toList();
     
-    // Typschutz anwenden + Liste speichern
+    // Zirkelbezug-Check: Alle Nachkommen dieser Node finden
+    final Set<String> descendants = {};
+    void findDescendants(String parentId) {
+      for (var node in allNodes) {
+        if (node.parentId == parentId) {
+          if (descendants.add(node.id)) {
+            findDescendants(node.id);
+          }
+        }
+      }
+    }
+    findDescendants(widget.node.id);
+
+    // Typschutz anwenden + Zirkelbezug ausschließen
     _allPotentialParents = allNodes.where((potentialParent) {
-      return widget.node.canBePlacedIn(potentialParent);
+      final isSelf = potentialParent.id == widget.node.id;
+      final isDescendant = descendants.contains(potentialParent.id);
+      return !isSelf && !isDescendant && widget.node.canBePlacedIn(potentialParent);
     }).toList();
     
     _filteredParents = List.from(_allPotentialParents);

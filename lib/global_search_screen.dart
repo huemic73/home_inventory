@@ -16,7 +16,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   final _searchController = TextEditingController();
   List<Item> _results = [];
   List<Tag> _availableTags = [];
-  final Set<String> _selectedTagIds = {}; // Neu: Mehrere Tags möglich
+  final Set<String> _selectedTagIds = {};
   bool _isLoading = false;
 
   @override
@@ -39,7 +39,6 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   Future<void> _performSearch() async {
     final query = _searchController.text.trim();
     
-    // Suche nur starten, wenn Text vorhanden ist ODER Tags gewählt wurden
     if (query.length < 2 && _selectedTagIds.isEmpty) {
       setState(() => _results = []);
       return;
@@ -49,12 +48,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
     try {
       List<String> filterParts = [];
       
-      // 1. Text-Filter hinzufügen
       if (query.isNotEmpty) {
         filterParts.add('(name ~ "$query" || tags.name ~ "$query")');
       }
       
-      // 2. Jede Tag-ID als eigenen Filter hinzufügen (AND-Verknüpfung)
       for (var id in _selectedTagIds) {
         filterParts.add('tags ~ "$id"');
       }
@@ -235,91 +232,6 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           );
           if (result == true) {
             _performSearch();
-          }
-        },
-      ),
-    );
-  }
-}
-
-  Widget _buildResultCard(Item item) {
-    String imageUrl = '';
-    if (item.photo.isNotEmpty && item.record != null) {
-      imageUrl = widget.pb.files.getUrl(item.record!, item.photo).toString();
-    }
-
-    String path = 'Ohne Zuordnung';
-    final nodeRecord = item.record?.get<RecordModel?>('expand.node');
-    if (nodeRecord != null) {
-      path = nodeRecord.getStringValue('name');
-    }
-
-    final tags = item.record?.get<List<RecordModel>?>('expand.tags') ?? [];
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 60, height: 60,
-          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(15), borderRadius: BorderRadius.circular(16)),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: imageUrl.isNotEmpty
-                ? Image.network(imageUrl, fit: BoxFit.cover)
-                : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary.withAlpha(150)),
-          ),
-        ),
-        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${item.quantity} Stück', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200), fontSize: 12)),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.location_on_outlined, size: 12, color: Colors.grey),
-                const SizedBox(width: 4),
-                Expanded(child: Text(path, style: const TextStyle(fontSize: 10, color: Colors.grey), overflow: TextOverflow.ellipsis)),
-              ],
-            ),
-            if (tags.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: tags.map((t) {
-                  final tag = Tag.fromRecord(t);
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tag.colorData.withAlpha(20),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      tag.name,
-                      style: TextStyle(color: tag.colorData, fontSize: 8, fontWeight: FontWeight.bold),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ],
-        ),
-        onTap: () async {
-          final result = await Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (context) => ItemDetailScreen(item: item, pb: widget.pb))
-          );
-          if (result == true) {
-            _performSearch(_searchController.text);
           }
         },
       ),

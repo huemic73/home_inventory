@@ -60,6 +60,9 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     final Set<String> occupied = {};
 
     int calculateRecursive(String nodeId) {
+      // Memoization: Wenn wir dieses Node schon berechnet haben, überspringen
+      if (totalCounts.containsKey(nodeId)) return totalCounts[nodeId]!;
+
       int count = nodeDirectItems[nodeId] ?? 0;
       final children = parentToChildren[nodeId] ?? [];
       for (var childId in children) {
@@ -361,7 +364,6 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         initialType: node?.type ?? NodeType.container,
         showIcons: true,
         showTypeSelector: true,
-        availableIcons: iconMapping.keys.toList(),
         pb: widget.pb,
         onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
           final data = {

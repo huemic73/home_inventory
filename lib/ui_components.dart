@@ -243,7 +243,6 @@ class InventoryForm extends StatefulWidget {
   final bool showQrScanner;
   final bool showTypeSelector;
   final bool showTagSelector;
-  final List<String>? availableIcons;
   final PocketBase pb;
   final Function(String name, int quantity, XFile? imageFile, String icon, String labelId, NodeType type, List<String> tagIds) onSave;
 
@@ -262,7 +261,6 @@ class InventoryForm extends StatefulWidget {
     this.showQrScanner = false,
     this.showTypeSelector = false,
     this.showTagSelector = false,
-    this.availableIcons,
     required this.pb,
     required this.onSave,
   });
@@ -286,7 +284,7 @@ class _InventoryFormState extends State<InventoryForm> {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName);
     _quantityController = TextEditingController(text: (widget.initialQuantity ?? 1).toString());
-    _selectedIcon = widget.initialIcon ?? (widget.availableIcons?.first ?? 'inventory_2');
+    _selectedIcon = widget.initialIcon ?? 'inventory_2';
     _currentLabelId = widget.initialLabelId ?? '';
     _selectedType = widget.initialType ?? NodeType.container;
     _selectedTagIds = List.from(widget.initialTagIds ?? []);
