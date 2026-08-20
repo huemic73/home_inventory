@@ -38,6 +38,22 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     _currentRecord = widget.item.record;
   }
 
+  List<StorageNode> _extractBreadcrumbs(RecordModel? itemRecord) {
+    if (itemRecord == null) return [];
+
+    final List<StorageNode> path = [];
+    dynamic current = itemRecord.data['expand']?['node'];
+
+    // Durchläuft alle Ebenen von innen nach außen
+    while (current is Map<String, dynamic>) {
+      path.add(StorageNode.fromRecord(RecordModel(current)));
+      current = current['expand']?['parent'];
+    }
+
+    // Umkehren: Vom obersten Raum (z. B. "1. OG") bis zum konkreten Ort ("Rollcontainer")
+    return path.reversed.toList();
+  }
+
   String _getImageUrl() {
     if (_currentPhoto.isEmpty || _currentRecord == null) {
       return '';
@@ -86,26 +102,29 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final imageUrl = _getImageUrl();
+    final breadcrumbs = _extractBreadcrumbs(_currentRecord);
 
-    // Pfad berechnen
-    final path = _currentRecord?.getStringValue('expand.node.name', 'Ohne Zuordnung')
-        ?? 'Ohne Zuordnung';
-
-    final tags = _currentRecord?.get<List<RecordModel>?>('expand.tags') ?? [];
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Textuelle Zusammenfassung für den Untertitel oder Zeilen
+    final String pathString = breadcrumbs.isEmpty
+        ? 'Ohne Zuordnung'
+        : breadcrumbs.map((n) => n.name).join(' > ');
 
     return InventoryPageLayout(
       title: _currentName,
-      subtitle: path,
+      subtitle: breadcrumbs.isNotEmpty ? '${breadcrumbs.last.name}' : null,
       imageUrl: imageUrl,
       actions: [
         IconButton(
           icon: const Icon(Icons.qr_code_2),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => QrDisplayScreen(item: widget.item))),
+          tooltip: 'QR-Code',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => QrDisplayScreen(item: widget.item)),
+          ),
         ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
+          tooltip: 'Optionen',
           onSelected: (value) {
             if (value == 'edit') {
               _showEditItemDialog();
@@ -124,69 +143,77 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_isUploading)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 16),
-                    child: LinearProgressIndicator(),
-                  ),
+                // ...
                 Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardTheme.color,
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 10))],
-                  ),
                   child: Column(
                     children: [
                       _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
                       const Divider(height: 32),
                       _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
                       const Divider(height: 32),
-                      _buildInfoRow(context, 'Standort', path, Icons.location_on_outlined),
-                      if (tags.isNotEmpty) ...[
-                        const Divider(height: 32),
-                        _buildTagsRow(context, tags),
-                      ],
+                      // Standort-Zeile: Entweder als formatierten Pfad oder als Breadcrumb-Chips
+                      _buildLocationRow(context, breadcrumbs),
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
-                const Text('Aktionen', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildActionButton(
-                        context, 
-                        'Foto ändern', 
-                        Icons.add_a_photo_outlined, 
-                        () => _showImageSourceActionSheet(context)
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildActionButton(
-                        context, 
-                        'Verschieben', 
-                        Icons.drive_file_move_outlined, 
-                        () async {
-                          final navigator = Navigator.of(context);
-                          final result = await Navigator.push(
-                            context, 
-                            MaterialPageRoute(builder: (context) => MoveItemScreen(pb: widget.pb, item: widget.item))
-                          );
-                          if (result == true) {
-                            navigator.pop(true); 
-                          }
-                        }
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationRow(BuildContext context, List<StorageNode> path) {
+    if (path.isEmpty) {
+      return _buildInfoRow(context, 'Standort', 'Ohne Zuordnung', Icons.location_on_outlined);
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withAlpha(10),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.location_on_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Standort-Pfad',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary.withAlpha(150),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  for (int i = 0; i < path.length; i++) ...[
+                    Text(
+                      path[i].name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: i == path.length - 1 ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    if (i < path.length - 1)
+                      const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+                  ],
+                ],
+              ),
+            ],
           ),
         ),
       ],
