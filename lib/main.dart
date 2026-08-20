@@ -91,12 +91,12 @@ class HomeInventoryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const String pcIp = '192.168.178.54';
-    
-    String baseUrl = 'http://127.0.0.1:8090';
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      baseUrl = 'http://$pcIp:8090';
-    }
+    // Basis-URL Konfiguration:
+    // 1. Im Web (Docker/Server) wird automatisch der aktuelle Host genutzt.
+    // 2. Für Android/iOS kann die IP via --dart-define=PB_SERVER_IP=192.168.x.x übergeben werden.
+    // 3. Fallback ist 127.0.0.1 (Lokal auf dem PC).
+    const String serverIp = String.fromEnvironment('PB_SERVER_IP', defaultValue: '127.0.0.1');
+    final String baseUrl = kIsWeb ? Uri.base.origin : 'http://$serverIp:8090';
 
     final pb = PocketBase(baseUrl, authStore: authStore);
     

@@ -35,3 +35,20 @@ Entwicklung einer modernen, rekursiven Inventarverwaltung. Fokus auf maximaler F
 - **Highlights:** Unbegrenzte Verschachtelungstiefe, Typschutz (z.B. kein Raum in eine Box), Multi-Tag-Suche, biometrische Sicherheit.
 - **Wartbarkeit:** Alle UI-Komponenten sind in `ui_components.dart` zentralisiert. Die Datenabfragen sind auf rekursive Strukturen optimiert.
 - **Roadmap:** Die Punkte "Rekursive Hierarchie" und "Tagging" aus der ursprünglichen `ROADMAP.md` wurden erfolgreich implementiert.
+
+## 🐳 Deployment & Server-Architektur (Docker)
+Die Anwendung wird produktiv auf einem Linux-Server (Ubuntu) betrieben:
+- **Setup:** 2-Container-System via Docker Compose.
+- **Dienste:**
+    1. `pocketbase`: Backend (Port 8090 für Admin, Port 8080 intern).
+    2. `home-inventory-app`: Flutter Web-App via Nginx (Port 8080).
+- **Build-Strategie:** Multi-Stage Build direkt auf dem Server (i5 CPU, 8GB RAM).
+- **Daten-Pfad (Server):** `~/home-inventory-project/pb_data/` (enthält `data.db` und `storage/`).
+- **Netzwerk:** 
+    - Die Web-App nutzt `Uri.base.origin`, um das Backend automatisch zu finden.
+    - Die Handy-App nutzt `String.fromEnvironment('PB_SERVER_IP')` für den Zugriff auf Port 8090 (Konfiguration via `--dart-define`).
+
+## 🔄 Workflow für Änderungen
+1. Code lokal in Android Studio ändern/testen.
+2. Geänderte Dateien per `scp` auf den Server schieben (`~/home-inventory-project`).
+3. Auf dem Server: `docker compose up -d --build` ausführen.

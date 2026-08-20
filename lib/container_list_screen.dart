@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'item_detail_screen.dart';
 import 'move_container_screen.dart';
+import 'pick_unassigned_items_screen.dart';
 import 'scanner_screen.dart';
 import 'global_search_screen.dart';
 import 'ui_components.dart';
@@ -288,12 +289,19 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                       MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, node: node))
                     );
                     if (result == true) _refreshData();
+                  } else if (val == 'pick') {
+                    final result = await Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: node))
+                    );
+                    if (result == true) _refreshData();
                   } else if (val == 'delete') {
                     _showDeleteConfirmDialog(context, node);
                   }
                 },
                 itemBuilder: (context) => [
                   const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+                  const PopupMenuItem(value: 'pick', child: Text('Artikel einsortieren')),
                   const PopupMenuItem(value: 'move', child: Text('Verschieben')),
                   const PopupMenuItem(value: 'delete', child: Text('Löschen')),
                 ],
@@ -366,9 +374,26 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   }
 
   Widget _buildFab(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        StandardFab(
+          heroTag: 'pick_existing',
+          label: 'Einsortieren',
+          icon: Icons.playlist_add,
+          onPressed: () async {
+            final res = await Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: widget.parentNode))
+            );
+            if (res == true) _refreshData();
+          },
+          backgroundColor: isDark ? const Color(0xFF2D2F36) : Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(width: 12),
         StandardFab(heroTag: 'add_subnode', label: 'Unter-Node', onPressed: () => _showAddNodeDialog(context)),
         const SizedBox(width: 12),
         StandardFab(heroTag: 'add_item', label: 'Artikel', icon: Icons.inventory_2, onPressed: () => _showAddItemDialog(context)),

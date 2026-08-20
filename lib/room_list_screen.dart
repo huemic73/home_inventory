@@ -5,6 +5,7 @@ import 'models.dart';
 import 'container_list_screen.dart';
 import 'item_list_screen.dart';
 import 'move_container_screen.dart';
+import 'pick_unassigned_items_screen.dart';
 import 'scanner_screen.dart';
 import 'bulk_qr_print_screen.dart';
 import 'user_profile_screen.dart';
@@ -281,12 +282,19 @@ class _RoomListScreenState extends State<RoomListScreen> {
                             MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, node: node))
                           );
                           if (result == true) _refreshNodes();
+                        } else if (val == 'pick') {
+                          final result = await Navigator.push(
+                            context, 
+                            MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: node))
+                          );
+                          if (result == true) _refreshNodes();
                         } else if (val == 'delete') {
                           _showDeleteConfirmDialog(context, node); 
                         }
                       }, 
                       itemBuilder: (context) => [
                         const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), 
+                        const PopupMenuItem(value: 'pick', child: Text('Artikel einsortieren')), 
                         const PopupMenuItem(value: 'move', child: Text('Verschieben')),
                         const PopupMenuItem(value: 'delete', child: Text('Löschen'))
                       ],

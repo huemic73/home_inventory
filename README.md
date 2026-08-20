@@ -50,7 +50,23 @@ Eine moderne, rekursive Flutter-Anwendung zur Inventarverwaltung für zuhause. O
 2. **Netzwerk:** In `lib/main.dart` die Variable `pcIp` auf die lokale IPv4-Adresse deines PCs setzen (für Android-Geräte).
 3. **Build:** `flutter run` (minSdk 21).
 
----
-
 ## 🐳 Docker Deployment
-Die Anwendung ist darauf ausgelegt, als Docker-Container zu laufen. Die Flutter-Web-App kann direkt im `pb_public` Ordner von PocketBase mitserviert werden.
+
+Die Anwendung kann extrem einfach als Docker-Container betrieben werden. Dabei wird die Flutter-Web-App direkt von PocketBase mitserviert.
+
+### 1. Container bauen und starten
+Führe im Hauptverzeichnis des Projekts folgenden Befehl aus:
+
+```bash
+docker-compose up -d --build
+```
+
+Die App ist danach unter `http://<deine-server-ip>:8090` erreichbar.
+
+### 2. Daten-Persistenz
+Alle Daten (Datenbank, Bilder, Einstellungen) werden in einem Docker-Volume namens `pb_data` gespeichert und bleiben auch bei Container-Updates erhalten.
+
+### 3. PocketBase Admin-Setup
+Nach dem ersten Start musst du:
+1. Unter `http://<deine-server-ip>:8090/_/` einen Admin-Account anlegen.
+2. Die Collections (`nodes`, `items`, `tags`) erstellen, wie im Abschnitt "Setup & Installation" beschrieben.

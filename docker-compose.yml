@@ -1,0 +1,25 @@
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: pocketbase
+    ports:
+      - "8090:8080"
+    volumes:
+      - ./pb_data:/pb_data
+    command:
+      - /usr/local/bin/pocketbase
+      - serve
+      - --http=0.0.0.0:8080
+      - --dir=/pb_data
+    restart: unless-stopped
+
+  home-inventory-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: home-inventory-app
+    ports:
+      - "8080:80"
+    depends_on:
+      - pocketbase
+    restart: unless-stopped

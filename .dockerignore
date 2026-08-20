@@ -1,0 +1,22 @@
+# Verzeichnisse, die NICHT in den Docker-Build kopiert werden sollen
+.git
+.idea
+.dart_tool
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+ios/
+android/
+test/
+
+# PocketBase Daten (Sehr wichtig, damit der Build nicht Gigabytes an Bildern kopiert)
+pb_data/
+pb_public/
+
+# Dokumentation und Logs
+*.md
+*.log
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml

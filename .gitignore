@@ -51,6 +51,11 @@ pocketbase.exe
 pb_data/
 pb_public/
 
+# Persönliche Konfigurationen (NICHT in Git)
+lib/server_config.dart
+.env
+.env.local
+
 # Obfuscation related
 app.*.map.json
 
