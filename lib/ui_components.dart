@@ -2,10 +2,96 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:photo_view/photo_view.dart';
 import 'dart:io' as io;
 import 'models.dart';
 import 'scanner_screen.dart';
 import 'package:pocketbase/pocketbase.dart';
+
+/// Ein interaktives Vollbild-Bild-Viewer Widget
+class FullScreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+  final String? title;
+
+  const FullScreenImageViewer({super.key, required this.imageUrl, this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: title != null ? Text(title!) : null,
+      ),
+      body: PhotoView(
+        imageProvider: CachedNetworkImageProvider(imageUrl),
+        minScale: PhotoViewComputedScale.contained,
+        maxScale: PhotoViewComputedScale.covered * 2.0,
+      ),
+    );
+  }
+}
+
+/// Zentrales Widget für die Bildanzeige mit Cache und Vollbild-Option
+class InventoryNetworkImage extends StatelessWidget {
+  final String imageUrl;
+  final String? title;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final BorderRadius? borderRadius;
+
+  const InventoryNetworkImage({
+    super.key,
+    required this.imageUrl,
+    this.title,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.borderRadius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget image = CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      placeholder: (context, url) => Container(
+        width: width,
+        height: height,
+        color: Colors.grey.withAlpha(20),
+        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      errorWidget: (context, url, error) => Container(
+        width: width,
+        height: height,
+        color: Colors.grey.withAlpha(20),
+        child: const Icon(Icons.error_outline),
+      ),
+    );
+
+    if (borderRadius != null) {
+      image = ClipRRect(borderRadius: borderRadius!, child: image);
+    }
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FullScreenImageViewer(imageUrl: imageUrl, title: title),
+          ),
+        );
+      },
+      child: image,
+    );
+  }
+}
 
 /// Zentrales Floating Action Button Objekt
 class StandardFab extends StatelessWidget {
@@ -247,7 +333,7 @@ class InventoryPageLayout extends StatelessWidget {
                     ? Stack(
                         fit: StackFit.expand,
                         children: [
-                          Image.network(imageUrl!, fit: BoxFit.cover),
+                          InventoryNetworkImage(imageUrl: imageUrl!, title: title),
                           const DecoratedBox(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -402,7 +488,10 @@ class InventoryListTile extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: (entity.photo?.isNotEmpty ?? false) && entity.record != null
-                ? Image.network(pb.files.getUrl(entity.record!, entity.photo!).toString(), fit: BoxFit.cover) 
+                ? InventoryNetworkImage(
+                    imageUrl: pb.files.getUrl(entity.record!, entity.photo!).toString(),
+                    title: entity.name,
+                  ) 
                 : Icon(entity.icon, color: Theme.of(context).colorScheme.primary.withAlpha(150)),
           ),
         ),
@@ -583,7 +672,10 @@ class InventoryCard extends StatelessWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: (entity.photo?.isNotEmpty ?? false) && entity.record != null
-                          ? Image.network(pb.files.getUrl(entity.record!, entity.photo!).toString(), fit: BoxFit.cover) 
+                          ? InventoryNetworkImage(
+                              imageUrl: pb.files.getUrl(entity.record!, entity.photo!).toString(),
+                              title: entity.name,
+                            ) 
                           : Icon(entity.icon, color: Theme.of(context).colorScheme.primary, size: 28),
                       ),
                     ),
@@ -836,8 +928,34 @@ class _InventoryFormState extends State<InventoryForm> {
       onTap: () async {
         Navigator.pop(context);
         final picker = ImagePicker();
-        final file = await picker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
-        if (file != null) setState(() => _pickedFile = file);
+        final file = await picker.pickImage(source: source, maxWidth: 2048, maxHeight: 2048, imageQuality: 85);
+        
+        if (file != null) {
+          final croppedFile = await ImageCropper().cropImage(
+            sourcePath: file.path,
+            aspectRatio: const CropAspectRatio(ratioX: 4, ratioY: 3),
+            uiSettings: [
+              AndroidUiSettings(
+                toolbarTitle: 'Bild zuschneiden',
+                toolbarColor: Theme.of(context).colorScheme.primary,
+                toolbarWidgetColor: Colors.white,
+                initAspectRatio: CropAspectRatioPreset.ratio4x3,
+                lockAspectRatio: true,
+              ),
+              IOSUiSettings(
+                title: 'Bild zuschneiden',
+                aspectRatioLockEnabled: true,
+              ),
+              WebUiSettings(
+                context: context,
+              ),
+            ],
+          );
+
+          if (croppedFile != null) {
+            setState(() => _pickedFile = XFile(croppedFile.path));
+          }
+        }
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -876,7 +994,7 @@ class _InventoryFormState extends State<InventoryForm> {
                   child: _pickedFile != null
                       ? ClipRRect(borderRadius: BorderRadius.circular(24), child: kIsWeb ? Image.network(_pickedFile!.path, fit: BoxFit.cover) : Image.file(io.File(_pickedFile!.path), fit: BoxFit.cover))
                       : (widget.initialPhotoUrl != null && widget.initialPhotoUrl!.isNotEmpty)
-                          ? ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.network(widget.initialPhotoUrl!, fit: BoxFit.cover))
+                          ? InventoryNetworkImage(imageUrl: widget.initialPhotoUrl!, title: _nameController.text, borderRadius: BorderRadius.circular(24))
                           : Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(isDark ? 30 : 10), shape: BoxShape.circle), child: Icon(Icons.add_a_photo_outlined, color: Theme.of(context).colorScheme.primary)), const SizedBox(height: 12), Text('Foto hinzufügen', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary.withAlpha(200)))]),
                 ),
               ),

@@ -215,7 +215,7 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: imageUrl.isNotEmpty
-                                ? Image.network(imageUrl, fit: BoxFit.cover)
+                                ? InventoryNetworkImage(imageUrl: imageUrl, title: container.name)
                                 : Icon(container.iconData, color: Theme.of(context).colorScheme.primary.withAlpha(100)),
                           ),
                         ),

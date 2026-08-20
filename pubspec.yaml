@@ -32,6 +32,8 @@ dependencies:
     sdk: flutter
   pocketbase: ^0.24.0+1
   image_picker: ^1.2.3
+  image_cropper: ^8.1.0
+  photo_view: ^0.15.0
   cached_network_image: ^3.4.1
   http: ^1.6.0
 
