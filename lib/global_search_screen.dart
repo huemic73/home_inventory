@@ -80,7 +80,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   @override
   Widget build(BuildContext context) {
     return InventoryPageLayout(
-      title: 'Artikelsuche',
+      title: 'Gegenstandssuche',
       subtitle: 'Gesamtes Inventar durchsuchen',
       filterBar: SearchBar(
         controller: _searchController,

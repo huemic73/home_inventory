@@ -97,18 +97,18 @@ class _ItemListScreenState extends State<ItemListScreen> {
           _refreshItems();
         },
       ),
-      sectionTitle: 'Artikel-Liste',
+      sectionTitle: 'Liste der Gegenstände',
       floatingActionButton: InventoryActionFab(
         actions: [
           InventoryAction(
-            label: 'Neuer Gegenstand',
+            label: 'Gegenstand hinzufügen',
             icon: Icons.label_outlined,
             isPrimary: true,
             onTap: () => _showAddItemDialog(context),
           ),
           if (widget.node != null)
             InventoryAction(
-              label: 'Artikel hier einsortieren',
+              label: 'Gegenstand hier einsortieren',
               icon: Icons.move_to_inbox_outlined,
               onTap: () async {
                 final res = await Navigator.push(
@@ -161,7 +161,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
     showDialog(
       context: context,
       builder: (context) => InventoryForm(
-        title: 'Neuer Artikel',
+        title: 'Gegenstand hinzufügen',
         showQuantity: true,
         showTagSelector: true,
         pb: widget.pb,

@@ -69,7 +69,7 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Artikel einsortieren', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const Text('Gegenstände einsortieren', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             Text('In: ${widget.targetNode.name}', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12)),
           ],
         ),
@@ -82,7 +82,7 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
           }
           final items = snapshot.data ?? [];
           if (items.isEmpty) {
-            return const Center(child: Text('Alle Artikel sind bereits einsortiert.'));
+            return const Center(child: Text('Alle Gegenstände sind bereits einsortiert.'));
           }
 
           return ListView.builder(
@@ -128,7 +128,7 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
           icon: _isSaving 
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.check),
-          label: Text('${_selectedItemIds.length} Artikel einsortieren'),
+          label: Text('${_selectedItemIds.length} Gegenstände einsortieren'),
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 20),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),

@@ -18,7 +18,7 @@ extension NodeTypeExtension on NodeType {
     switch (this) {
       case NodeType.area: return 'Bereich';
       case NodeType.room: return 'Raum';
-      case NodeType.location: return 'Ort / Regal';
+      case NodeType.location: return 'Regal / Ort';
       case NodeType.container: return 'Box / Kiste';
     }
   }

@@ -156,7 +156,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         ),
         const SizedBox(width: 8),
         FilterChip(
-          label: const Text('Nur Belegte'),
+          label: const Text('Nur belegte'),
           selected: _onlyOccupied,
           onSelected: (val) => setState(() { _onlyOccupied = true; }),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -166,18 +166,18 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       floatingActionButton: InventoryActionFab(
         actions: [
           InventoryAction(
-            label: 'Neuer Gegenstand',
+            label: 'Gegenstand hinzufügen',
             icon: Icons.label_outlined,
             isPrimary: true,
             onTap: () => _showAddItemDialog(context),
           ),
           InventoryAction(
-            label: 'Neue(r) ${widget.parentNode.type.defaultChildType.label}',
+            label: '${widget.parentNode.type.defaultChildType.label} hinzufügen',
             icon: Icons.add_box_outlined,
             onTap: () => _showAddNodeDialog(context),
           ),
           InventoryAction(
-            label: 'Artikel hier einsortieren',
+            label: 'Gegenstand hier einsortieren',
             icon: Icons.move_to_inbox_outlined,
             onTap: () async {
               final res = await Navigator.push(
@@ -227,7 +227,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                       const SizedBox(height: 32),
                     ],
                     if (items.isNotEmpty) ...[
-                      const Text('Direkt abgelegte Artikel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text('Gegenstände an diesem Ort', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       const SizedBox(height: 16),
                       _buildItemsList(items),
                     ],
@@ -260,7 +260,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
           entity: node,
           pb: widget.pb,
           onRefresh: _refreshData,
-          subtitleOverride: '${_totalItemCounts[node.id] ?? 0} Artikel · ${_childNodeCounts[node.id] ?? 0} Unterelemente',
+          subtitleOverride: '${_totalItemCounts[node.id] ?? 0} Gegenstände · ${_childNodeCounts[node.id] ?? 0} Unterelemente',
           popupMenu: PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, size: 18),
             onSelected: (val) async {
@@ -284,7 +284,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
             },
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-              const PopupMenuItem(value: 'pick', child: Text('Artikel einsortieren')),
+              const PopupMenuItem(value: 'pick', child: Text('Gegenstand einsortieren')),
               const PopupMenuItem(value: 'move', child: Text('Verschieben')),
               const PopupMenuItem(value: 'delete', child: Text('Löschen')),
             ],
@@ -372,7 +372,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     showDialog(
       context: context,
       builder: (context) => InventoryForm(
-        title: 'Neuer Artikel',
+        title: 'Gegenstand hinzufügen',
         showQuantity: true,
         showTagSelector: true,
         pb: widget.pb,

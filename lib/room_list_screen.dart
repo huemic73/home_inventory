@@ -108,8 +108,8 @@ class _RoomListScreenState extends State<RoomListScreen> {
   @override
   Widget build(BuildContext context) {
     return InventoryPageLayout(
-      title: 'Heiminventar',
-      subtitle: 'Standorte & Bereiche',
+      title: 'Meine Bereiche',
+      subtitle: 'Übersicht',
       drawer: _buildDrawer(context),
       actions: [
         IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
@@ -118,7 +118,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
       ],
       filterChips: [
         FilterChip(
-          label: const Text('Alle Bereiche'), 
+          label: const Text('Alles'), 
           selected: !_onlyOccupied, 
           onSelected: (val) => setState(() => _onlyOccupied = false), 
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), 
@@ -137,13 +137,13 @@ class _RoomListScreenState extends State<RoomListScreen> {
       floatingActionButton: InventoryActionFab(
         actions: [
           InventoryAction(
-            label: 'Neuer Bereich / Raum',
+            label: 'Bereich hinzufügen',
             icon: Icons.domain_add,
             isPrimary: true,
             onTap: () => _showAddNodeDialog(context),
           ),
           InventoryAction(
-            label: 'Neuer Gegenstand (Unsortiert)',
+            label: 'Gegenstand hinzufügen',
             icon: Icons.label_outlined,
             onTap: () => _showAddItemDialog(context),
           ),
@@ -199,7 +199,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
                           entity: node,
                           pb: widget.pb,
                           onRefresh: _refreshNodes,
-                          subtitleOverride: '${_totalItemCounts[node.id] ?? 0} Artikel · ${_childNodeCounts[node.id] ?? 0} Unterelemente',
+                          subtitleOverride: '${_totalItemCounts[node.id] ?? 0} Gegenstände · ${_childNodeCounts[node.id] ?? 0} Unterelemente',
                           popupMenu: PopupMenuButton<String>(
                             icon: const Icon(Icons.more_horiz), 
                             onSelected: (val) async { 
@@ -223,7 +223,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
                             }, 
                             itemBuilder: (context) => [
                               const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), 
-                              const PopupMenuItem(value: 'pick', child: Text('Artikel einsortieren')), 
+                              const PopupMenuItem(value: 'pick', child: Text('Gegenstand einsortieren')), 
                               const PopupMenuItem(value: 'move', child: Text('Verschieben')),
                               const PopupMenuItem(value: 'delete', child: Text('Löschen'))
                             ],
@@ -248,7 +248,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
       children: [
         DrawerHeader(
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black12, width: 1))),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Text('Heiminventar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)), Text('Rekursive Struktur v2.0', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54))]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Text('Meine Bereiche', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)), Text('Inventar-Übersicht', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54))]),
         ),
         const SizedBox(height: 12),
         NavigationDrawerDestination(icon: Icon(Icons.dashboard_outlined, color: isDark ? Colors.white70 : null), label: Text('Übersicht', style: TextStyle(color: isDark ? Colors.white : null))),
@@ -275,7 +275,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         title: Text('Ohne Zuordnung', style: TextStyle(color: _unassignedItemCount > 0 || isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
-        subtitle: Text(_unassignedItemCount > 0 ? '$_unassignedItemCount Artikel warten auf einen Platz' : 'Alles perfekt einsortiert!', style: TextStyle(color: _unassignedItemCount > 0 || isDark ? Colors.white70 : Colors.black54)),
+        subtitle: Text(_unassignedItemCount > 0 ? '$_unassignedItemCount Gegenstände warten auf einen Platz' : 'Alles perfekt einsortiert!', style: TextStyle(color: _unassignedItemCount > 0 || isDark ? Colors.white70 : Colors.black54)),
         trailing: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: _unassignedItemCount > 0 || isDark ? Colors.white24 : Colors.black12, shape: BoxShape.circle), child: Icon(_unassignedItemCount > 0 ? Icons.arrow_forward : Icons.check, color: _unassignedItemCount > 0 || isDark ? Colors.white : Colors.black54)),
         onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, onlyUnassigned: true))); _refreshNodes(); },
       ),
@@ -329,7 +329,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
     showDialog(
       context: context,
       builder: (context) => InventoryForm(
-        title: 'Neuer Artikel',
+        title: 'Gegenstand hinzufügen',
         showQuantity: true,
         showTagSelector: true,
         pb: widget.pb,
