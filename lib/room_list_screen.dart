@@ -289,7 +289,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
         title: node == null ? 'Neuer Bereich' : 'Bereich bearbeiten',
         initialName: node?.name,
         initialIcon: node?.iconName ?? 'area',
-        initialType: node?.type ?? NodeType.area,
+        initialType: node?.type ?? NodeType.bereich,
         showIcons: true,
         showTypeSelector: true, // Erlaube Wahl zwischen AREA und ROOM
         pb: widget.pb,

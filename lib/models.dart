@@ -7,18 +7,18 @@ import 'container_list_screen.dart';
 const String qrBaseUrl = 'https://home-inventory.app';
 
 enum NodeType {
-  area,      // z.B. Erdgeschoss, Garten
-  room,      // z.B. Küche, Werkstatt
-  location,  // z.B. Regal, Schrank
+  bereich,      // z.B. Erdgeschoss, Garten
+  raum,      // z.B. Küche, Werkstatt
+  ablageort,  // z.B. Regal, Schrank
   container  // z.B. Kiste, Tasche
 }
 
 extension NodeTypeExtension on NodeType {
   String get label {
     switch (this) {
-      case NodeType.area: return 'Bereich';
-      case NodeType.room: return 'Raum';
-      case NodeType.location: return 'Regal / Ort';
+      case NodeType.bereich: return 'Bereich';
+      case NodeType.raum: return 'Raum';
+      case NodeType.ablageort: return 'Regal / Ort';
       case NodeType.container: return 'Box / Kiste';
     }
   }
@@ -26,9 +26,9 @@ extension NodeTypeExtension on NodeType {
   /// Welcher Typ wird normalerweise in diesem Typ erstellt?
   NodeType get defaultChildType {
     switch (this) {
-      case NodeType.area: return NodeType.room;
-      case NodeType.room: return NodeType.location;
-      case NodeType.location: return NodeType.container;
+      case NodeType.bereich: return NodeType.raum;
+      case NodeType.raum: return NodeType.ablageort;
+      case NodeType.ablageort: return NodeType.container;
       case NodeType.container: return NodeType.container;
     }
   }
@@ -97,9 +97,9 @@ class StorageNode implements InventoryEntity {
     }
     // Fallbacks je nach Typ
     switch (type) {
-      case NodeType.area: return Icons.domain;
-      case NodeType.room: return Icons.meeting_room;
-      case NodeType.location: return Icons.shelves;
+      case NodeType.bereich: return Icons.domain;
+      case NodeType.raum: return Icons.meeting_room;
+      case NodeType.ablageort: return Icons.shelves;
       case NodeType.container: return Icons.inventory_2_outlined;
     }
   }
@@ -131,12 +131,12 @@ class StorageNode implements InventoryEntity {
     if (potentialParent.id == id) return false;
     
     switch (type) {
-      case NodeType.area:
+      case NodeType.bereich:
         return false;
-      case NodeType.room:
-        return potentialParent.type == NodeType.area;
-      case NodeType.location:
-        return potentialParent.type == NodeType.room || potentialParent.type == NodeType.area;
+      case NodeType.raum:
+        return potentialParent.type == NodeType.bereich;
+      case NodeType.ablageort:
+        return potentialParent.type == NodeType.raum || potentialParent.type == NodeType.bereich;
       case NodeType.container:
         return true; // Darf fast überall rein
     }
@@ -240,9 +240,9 @@ class Tag {
 
 // Zentrales Mapping für Icons, gruppiert nach Typ für die UI
 final Map<NodeType, List<String>> iconsByType = {
-  NodeType.area: ['area', 'warehouse', 'deck', 'garage'],
-  NodeType.room: ['meeting_room', 'kitchen', 'weekend', 'bed', 'build', 'garage', 'warehouse', 'deck'],
-  NodeType.location: ['shelves', 'door_sliding', 'home_repair_service'],
+  NodeType.bereich: ['area', 'warehouse', 'deck', 'garage'],
+  NodeType.raum: ['meeting_room', 'kitchen', 'weekend', 'bed', 'build', 'garage', 'warehouse', 'deck'],
+  NodeType.ablageort: ['shelves', 'door_sliding', 'home_repair_service'],
   NodeType.container: ['inventory_2', 'archive', 'shopping_basket'],
 };
 
