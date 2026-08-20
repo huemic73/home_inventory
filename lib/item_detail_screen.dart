@@ -61,9 +61,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   List<Tag> _getTags() {
-    final expandedTags = _currentRecord?.get<List<dynamic>?>('expand.tags') ?? [];
+    if (_currentRecord == null) return [];
+    final expandedTags = _currentRecord!.expand['tags'] ?? [];
     return expandedTags
-        .whereType<RecordModel>()
         .map((r) => Tag.fromRecord(r))
         .toList();
   }
@@ -112,6 +112,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 Column(
                   children: [
                     _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
+                    if (tags.isNotEmpty) ...[
+                      const Divider(height: 32),
+                      _buildTagsRow(context, tags),
+                    ],
                     if (_currentDescription.isNotEmpty) ...[
                       const Divider(height: 32),
                       _buildInfoRow(context, 'Beschreibung', _currentDescription, Icons.description_outlined),
@@ -121,10 +125,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     const Divider(height: 32),
                     // Standort-Zeile: Entweder als formatierten Pfad oder als Breadcrumb-Chips
                     _buildLocationRow(context, breadcrumbs),
-                    if (tags.isNotEmpty) ...[
-                      const Divider(height: 32),
-                      _buildTagsRow(context, tags),
-                    ],
                   ],
                 ),
               ],

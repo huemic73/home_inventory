@@ -195,9 +195,8 @@ class Item implements InventoryEntity {
 
   @override
   List<Tag> get tags {
-    final expandedTags = record?.get<List<dynamic>?>('expand.tags') ?? [];
+    final expandedTags = record?.expand['tags'] ?? [];
     return expandedTags
-        .whereType<RecordModel>()
         .map((r) => Tag.fromRecord(r))
         .toList();
   }
