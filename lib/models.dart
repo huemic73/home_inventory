@@ -13,6 +13,27 @@ enum NodeType {
   container  // z.B. Kiste, Tasche
 }
 
+extension NodeTypeExtension on NodeType {
+  String get label {
+    switch (this) {
+      case NodeType.area: return 'Bereich';
+      case NodeType.room: return 'Raum';
+      case NodeType.location: return 'Ort / Regal';
+      case NodeType.container: return 'Box / Kiste';
+    }
+  }
+
+  /// Welcher Typ wird normalerweise in diesem Typ erstellt?
+  NodeType get defaultChildType {
+    switch (this) {
+      case NodeType.area: return NodeType.room;
+      case NodeType.room: return NodeType.location;
+      case NodeType.location: return NodeType.container;
+      case NodeType.container: return NodeType.container;
+    }
+  }
+}
+
 /// Gemeinsames Interface für alles, was in Listen angezeigt werden kann
 abstract class InventoryEntity {
   String get id;
@@ -87,7 +108,7 @@ class StorageNode implements InventoryEntity {
   IconData get icon => iconData;
 
   @override
-  String get secondaryInfo => type.name.toUpperCase();
+  String get secondaryInfo => type.label;
 
   @override
   List<Tag> get tags => []; // Nodes haben aktuell keine Tags in der DB

@@ -41,6 +41,92 @@ class StandardFab extends StatelessWidget {
   }
 }
 
+/// Ein konsolidierter Action-Button, der ein Menü öffnet
+class InventoryActionFab extends StatelessWidget {
+  final List<InventoryAction> actions;
+  final String heroTag;
+
+  const InventoryActionFab({
+    super.key, 
+    required this.actions,
+    this.heroTag = 'main_fab',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingActionButton.extended(
+      heroTag: heroTag,
+      onPressed: () => _showActionMenu(context),
+      icon: const Icon(Icons.add),
+      label: const Text('Hinzufügen', style: TextStyle(fontWeight: FontWeight.bold)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    );
+  }
+
+  void _showActionMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Was möchtest du tun?', 
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+              ),
+              const SizedBox(height: 16),
+              ...actions.map((action) => ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: action.isPrimary 
+                        ? Theme.of(context).colorScheme.primary.withAlpha(20)
+                        : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    action.icon, 
+                    color: action.isPrimary ? Theme.of(context).colorScheme.primary : null
+                  ),
+                ),
+                title: Text(
+                  action.label, 
+                  style: TextStyle(
+                    fontWeight: action.isPrimary ? FontWeight.bold : FontWeight.normal,
+                    color: action.isPrimary ? Theme.of(context).colorScheme.primary : null,
+                  )
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  action.onTap();
+                },
+              )),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class InventoryAction {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isPrimary;
+
+  const InventoryAction({
+    required this.label, 
+    required this.icon, 
+    required this.onTap, 
+    this.isPrimary = false
+  });
+}
+
 /// Das Master-Layout für alle Übersichtsseiten (Räume, Orte, Container, Suche)
 class InventoryPageLayout extends StatelessWidget {
   final String title;

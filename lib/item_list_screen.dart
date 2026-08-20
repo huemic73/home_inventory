@@ -64,7 +64,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
 
     if (widget.node != null) {
       title = widget.node!.name;
-      subtitle = 'In: ${widget.node!.type.name.toUpperCase()}';
+      subtitle = 'In: ${widget.node!.type.label}';
       if (widget.node!.photo.isNotEmpty) {
         imageUrl = widget.pb.files.getUrl(widget.node!.record, widget.node!.photo).toString();
       }
@@ -98,7 +98,28 @@ class _ItemListScreenState extends State<ItemListScreen> {
         },
       ),
       sectionTitle: 'Artikel-Liste',
-      floatingActionButton: _buildFab(context),
+      floatingActionButton: InventoryActionFab(
+        actions: [
+          InventoryAction(
+            label: 'Neuer Gegenstand',
+            icon: Icons.inventory_2_outlined,
+            isPrimary: true,
+            onTap: () => _showAddItemDialog(context),
+          ),
+          if (widget.node != null)
+            InventoryAction(
+              label: 'Artikel hier einsortieren',
+              icon: Icons.playlist_add,
+              onTap: () async {
+                final res = await Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: widget.node!))
+                );
+                if (res == true) _refreshItems();
+              },
+            ),
+        ],
+      ),
       slivers: [
         SliverToBoxAdapter(
           child: FutureBuilder<List<Item>>(
@@ -132,32 +153,6 @@ class _ItemListScreenState extends State<ItemListScreen> {
             },
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildFab(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (widget.node != null) ...[
-          StandardFab(
-            heroTag: 'pick_existing',
-            label: 'Bestehende wählen',
-            icon: Icons.playlist_add,
-            onPressed: () async {
-              final res = await Navigator.push(context, MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: widget.node!)));
-              if (res == true) {
-                _refreshItems();
-              }
-            },
-            backgroundColor: isDark ? const Color(0xFF2D2F36) : Colors.white,
-            foregroundColor: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 12),
-        ],
-        StandardFab(heroTag: 'add_new', label: 'Artikel', onPressed: () => _showAddItemDialog(context)),
       ],
     );
   }

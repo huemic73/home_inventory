@@ -137,22 +137,11 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
 
     return InventoryPageLayout(
       title: widget.parentNode.name,
-      subtitle: '${widget.parentNode.type.name.toUpperCase()} · Inhaltsverzeichnis',
+      subtitle: '${widget.parentNode.type.label} · Inhaltsverzeichnis',
       imageUrl: imageUrl,
       breadcrumbs: _path,
       onHomePressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.playlist_add), 
-          tooltip: 'Artikel einsortieren',
-          onPressed: () async {
-            final res = await Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: widget.parentNode))
-            );
-            if (res == true) _refreshData();
-          }
-        ),
         IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
         IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb)))),
         IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
@@ -174,7 +163,32 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
           showCheckmark: false,
         ),
       ],
-      floatingActionButton: _buildFab(context),
+      floatingActionButton: InventoryActionFab(
+        actions: [
+          InventoryAction(
+            label: 'Neuer Gegenstand',
+            icon: Icons.inventory_2_outlined,
+            isPrimary: true,
+            onTap: () => _showAddItemDialog(context),
+          ),
+          InventoryAction(
+            label: 'Neue(r) ${widget.parentNode.type.defaultChildType.label}',
+            icon: Icons.add_location_alt_outlined,
+            onTap: () => _showAddNodeDialog(context),
+          ),
+          InventoryAction(
+            label: 'Artikel hier einsortieren',
+            icon: Icons.playlist_add,
+            onTap: () async {
+              final res = await Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: widget.parentNode))
+              );
+              if (res == true) _refreshData();
+            },
+          ),
+        ],
+      ),
       slivers: [
         SliverToBoxAdapter(
           child: FutureBuilder<Map<String, dynamic>>(
@@ -287,30 +301,6 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         pb: widget.pb,
         onRefresh: _refreshData,
       )).toList(),
-    );
-  }
-
-  Widget _buildFab(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Kompakte Buttons ohne lange Labels sparen Platz
-        FloatingActionButton.extended(
-          heroTag: 'add_subnode',
-          onPressed: () => _showAddNodeDialog(context),
-          label: const Text('Node'),
-          icon: const Icon(Icons.add),
-        ),
-        const SizedBox(width: 12),
-        FloatingActionButton.extended(
-          heroTag: 'add_item',
-          onPressed: () => _showAddItemDialog(context),
-          label: const Text('Artikel'),
-          icon: const Icon(Icons.inventory_2),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Colors.white,
-        ),
-      ],
     );
   }
 

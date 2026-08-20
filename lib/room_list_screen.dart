@@ -134,7 +134,21 @@ class _RoomListScreenState extends State<RoomListScreen> {
         ),
       ],
       sectionTitle: 'Deine Bereiche',
-      floatingActionButton: StandardFab(label: 'Bereich/Raum', onPressed: () => _showAddNodeDialog(context)),
+      floatingActionButton: InventoryActionFab(
+        actions: [
+          InventoryAction(
+            label: 'Neuer Bereich / Raum',
+            icon: Icons.domain_add,
+            isPrimary: true,
+            onTap: () => _showAddNodeDialog(context),
+          ),
+          InventoryAction(
+            label: 'Neuer Gegenstand (Unsortiert)',
+            icon: Icons.inventory_2_outlined,
+            onTap: () => _showAddItemDialog(context),
+          ),
+        ],
+      ),
       slivers: [
         FutureBuilder<List<StorageNode>>(
           future: _nodesFuture,
@@ -308,22 +322,36 @@ class _RoomListScreenState extends State<RoomListScreen> {
   }
 
   void _showDeleteConfirmDialog(BuildContext context, StorageNode node) {
+    // ... (bestehender Code)
+  }
+
+  void _showAddItemDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Löschen?'),
-        content: const Text('Dies löscht nur diesen Knoten. Unterelemente müssen separat verschoben werden.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
-          TextButton(
-            onPressed: () async {
-              final nav = Navigator.of(context);
-              await widget.pb.collection('nodes').delete(node.id);
-              if (context.mounted) { nav.pop(); _refreshNodes(); }
-            },
-            child: const Text('Löschen', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+      builder: (context) => InventoryForm(
+        title: 'Neuer Artikel',
+        showQuantity: true,
+        showTagSelector: true,
+        pb: widget.pb,
+        onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
+          final Map<String, dynamic> body = {
+            'name': name, 
+            'quantity': quantity,
+            'tags': tagIds,
+            'node': '', // Ohne Zuordnung
+          };
+          List<http.MultipartFile> files = [];
+          if (imageFile != null) {
+            files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+          }
+          try {
+            await widget.pb.collection('items').create(body: body, files: files);
+            if (context.mounted) Navigator.pop(context);
+            _refreshNodes();
+          } catch (e) {
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          }
+        },
       ),
     );
   }
