@@ -60,10 +60,19 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     return widget.pb.files.getUrl(_currentRecord!, _currentPhoto).toString();
   }
 
+  List<Tag> _getTags() {
+    final expandedTags = _currentRecord?.get<List<dynamic>?>('expand.tags') ?? [];
+    return expandedTags
+        .whereType<RecordModel>()
+        .map((r) => Tag.fromRecord(r))
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final imageUrl = _getImageUrl();
     final breadcrumbs = _extractBreadcrumbs(_currentRecord);
+    final tags = _getTags();
 
     return InventoryPageLayout(
       title: _currentName,
@@ -112,10 +121,67 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     const Divider(height: 32),
                     // Standort-Zeile: Entweder als formatierten Pfad oder als Breadcrumb-Chips
                     _buildLocationRow(context, breadcrumbs),
+                    if (tags.isNotEmpty) ...[
+                      const Divider(height: 32),
+                      _buildTagsRow(context, tags),
+                    ],
                   ],
                 ),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagsRow(BuildContext context, List<Tag> tags) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withAlpha(10),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.tag, size: 20, color: Theme.of(context).colorScheme.primary),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Tags',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary.withAlpha(150),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: tags.map((tag) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: tag.colorData.withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: tag.colorData.withAlpha(50)),
+                  ),
+                  child: Text(
+                    tag.name,
+                    style: TextStyle(
+                      color: tag.colorData,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )).toList(),
+              ),
+            ],
           ),
         ),
       ],
