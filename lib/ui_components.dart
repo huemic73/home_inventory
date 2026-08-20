@@ -432,7 +432,7 @@ class InventoryListTile extends StatelessWidget {
         trailing: trailingOverride ?? Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (trailingActions != null) ...trailingActions!,
+            ...?trailingActions,
             const Icon(Icons.chevron_right, size: 20),
           ],
         ),
@@ -492,7 +492,7 @@ class InventoryCard extends StatelessWidget {
                           : Icon(entity.icon, color: Theme.of(context).colorScheme.primary, size: 28),
                       ),
                     ),
-                    if (popupMenu != null) popupMenu!,
+                    ?popupMenu,
                   ],
                 ),
                 const Spacer(),
