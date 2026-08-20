@@ -143,6 +143,17 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       breadcrumbs: _path,
       onHomePressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
       actions: [
+        IconButton(
+          icon: const Icon(Icons.playlist_add), 
+          tooltip: 'Artikel einsortieren',
+          onPressed: () async {
+            final res = await Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: widget.parentNode))
+            );
+            if (res == true) _refreshData();
+          }
+        ),
         IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
         IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb)))),
         IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
@@ -374,29 +385,25 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   }
 
   Widget _buildFab(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        StandardFab(
-          heroTag: 'pick_existing',
-          label: 'Einsortieren',
-          icon: Icons.playlist_add,
-          onPressed: () async {
-            final res = await Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: widget.parentNode))
-            );
-            if (res == true) _refreshData();
-          },
-          backgroundColor: isDark ? const Color(0xFF2D2F36) : Colors.white,
-          foregroundColor: Theme.of(context).colorScheme.primary,
+        // Kompakte Buttons ohne lange Labels sparen Platz
+        FloatingActionButton.extended(
+          heroTag: 'add_subnode',
+          onPressed: () => _showAddNodeDialog(context),
+          label: const Text('Node'),
+          icon: const Icon(Icons.add),
         ),
         const SizedBox(width: 12),
-        StandardFab(heroTag: 'add_subnode', label: 'Unter-Node', onPressed: () => _showAddNodeDialog(context)),
-        const SizedBox(width: 12),
-        StandardFab(heroTag: 'add_item', label: 'Artikel', icon: Icons.inventory_2, onPressed: () => _showAddItemDialog(context)),
+        FloatingActionButton.extended(
+          heroTag: 'add_item',
+          onPressed: () => _showAddItemDialog(context),
+          label: const Text('Artikel'),
+          icon: const Icon(Icons.inventory_2),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Colors.white,
+        ),
       ],
     );
   }
