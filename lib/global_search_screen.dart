@@ -59,7 +59,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
 
       final records = await widget.pb.collection('items').getFullList(
         filter: filter,
-        expand: 'node,tags',
+        expand: 'node.parent.parent.parent.parent,tags',
         sort: 'name',
       );
 
