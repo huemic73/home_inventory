@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import 'models.dart';
-import 'item_detail_screen.dart';
 import 'move_container_screen.dart';
 import 'pick_unassigned_items_screen.dart';
 import 'scanner_screen.dart';
@@ -232,155 +231,62 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
 
   Widget _buildNodesGrid(List<StorageNode> nodes) {
     return GridView.builder(
-      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 450, mainAxisExtent: 100, mainAxisSpacing: 12, crossAxisSpacing: 12),
-      itemCount: nodes.length,
-      itemBuilder: (context, index) => _buildNodeCard(nodes[index]),
-    );
-  }
-
-  Widget _buildNodeCard(StorageNode node) {
-    String imageUrl = node.photo.isNotEmpty ? widget.pb.files.getUrl(node.record, node.photo).toString() : '';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color, 
-        borderRadius: BorderRadius.circular(24), 
-        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 20, offset: const Offset(0, 4))]
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 450,
+        mainAxisExtent: 180, // Angepasst an InventoryCard Höhe
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, parentNode: node))),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                width: 60, height: 60,
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(15), borderRadius: BorderRadius.circular(16)),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: imageUrl.isNotEmpty 
-                    ? Image.network(imageUrl, fit: BoxFit.cover) 
-                    : Icon(node.iconData, color: Theme.of(context).colorScheme.primary, size: 28),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      node.name.isEmpty ? 'Unbenanntes Element' : node.name, 
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold, 
-                        fontSize: 16, 
-                        color: isDark ? Colors.white : Colors.black87
-                      ), 
-                      maxLines: 1, 
-                      overflow: TextOverflow.ellipsis
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_totalItemCounts[node.id] ?? 0} Artikel · ${_childNodeCounts[node.id] ?? 0} Unterelemente', 
-                      style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(150), fontSize: 11, fontWeight: FontWeight.bold)
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, size: 18),
-                onSelected: (val) async {
-                  if (val == 'edit') {
-                    _showAddNodeDialog(context, node: node);
-                  } else if (val == 'move') {
-                    final result = await Navigator.push(
-                      context, 
-                      MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, node: node))
-                    );
-                    if (result == true) _refreshData();
-                  } else if (val == 'pick') {
-                    final result = await Navigator.push(
-                      context, 
-                      MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: node))
-                    );
-                    if (result == true) _refreshData();
-                  } else if (val == 'delete') {
-                    _showDeleteConfirmDialog(context, node);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                  const PopupMenuItem(value: 'pick', child: Text('Artikel einsortieren')),
-                  const PopupMenuItem(value: 'move', child: Text('Verschieben')),
-                  const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-                ],
-              ),
+      itemCount: nodes.length,
+      itemBuilder: (context, index) {
+        final node = nodes[index];
+        return InventoryCard(
+          entity: node,
+          pb: widget.pb,
+          onRefresh: _refreshData,
+          subtitleOverride: '${_totalItemCounts[node.id] ?? 0} Artikel · ${_childNodeCounts[node.id] ?? 0} Unterelemente',
+          popupMenu: PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 18),
+            onSelected: (val) async {
+              if (val == 'edit') {
+                _showAddNodeDialog(context, node: node);
+              } else if (val == 'move') {
+                final result = await Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, node: node))
+                );
+                if (result == true) _refreshData();
+              } else if (val == 'pick') {
+                final result = await Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: node))
+                );
+                if (result == true) _refreshData();
+              } else if (val == 'delete') {
+                _showDeleteConfirmDialog(context, node);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+              const PopupMenuItem(value: 'pick', child: Text('Artikel einsortieren')),
+              const PopupMenuItem(value: 'move', child: Text('Verschieben')),
+              const PopupMenuItem(value: 'delete', child: Text('Löschen')),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildItemsList(List<Item> items) {
     return Column(
-      children: items.map((item) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: _buildItemTile(item),
+      children: items.map((item) => InventoryListTile(
+        entity: item,
+        pb: widget.pb,
+        onRefresh: _refreshData,
       )).toList(),
-    );
-  }
-
-  Widget _buildItemTile(Item item) {
-    String imageUrl = item.photo.isNotEmpty ? widget.pb.files.getUrl(item.record!, item.photo).toString() : '';
-
-    final tags = item.record?.get<List<RecordModel>?>('expand.tags') ?? [];
-
-    return Container(
-      decoration: BoxDecoration(color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(24)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 50, height: 50,
-          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(10), borderRadius: BorderRadius.circular(12)),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: imageUrl.isNotEmpty ? Image.network(imageUrl, fit: BoxFit.cover) : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary.withAlpha(100)),
-          ),
-        ),
-        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${item.quantity} Stück'),
-            if (tags.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: tags.map((t) {
-                  final tag = Tag.fromRecord(t);
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tag.colorData.withAlpha(20),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      tag.name,
-                      style: TextStyle(color: tag.colorData, fontSize: 8, fontWeight: FontWeight.bold),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ItemDetailScreen(item: item, pb: widget.pb))),
-      ),
     );
   }
 

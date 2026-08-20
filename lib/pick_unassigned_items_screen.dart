@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'models.dart';
+import 'ui_components.dart';
 
 class PickUnassignedItemsScreen extends StatefulWidget {
   final PocketBase pb;
@@ -90,36 +91,30 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
             itemBuilder: (context, index) {
               final item = items[index];
               final isSelected = _selectedItemIds.contains(item.id);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  decoration: BoxDecoration(
-                    color: isSelected ? Theme.of(context).colorScheme.primaryContainer.withAlpha(100) : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                      width: 2,
-                    ),
-                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))],
-                  ),
-                  child: CheckboxListTile(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    value: isSelected,
-                    title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('${item.quantity} Stück'),
-                    secondary: _buildLeading(item),
-                    onChanged: (val) {
-                      setState(() {
-                        if (val == true) {
-                          _selectedItemIds.add(item.id);
-                        } else {
-                          _selectedItemIds.remove(item.id);
-                        }
-                      });
-                    },
-                  ),
+              return InventoryListTile(
+                entity: item,
+                pb: widget.pb,
+                trailingOverride: Checkbox(
+                  value: isSelected,
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _selectedItemIds.add(item.id);
+                      } else {
+                        _selectedItemIds.remove(item.id);
+                      }
+                    });
+                  },
                 ),
+                onTapOverride: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedItemIds.remove(item.id);
+                    } else {
+                      _selectedItemIds.add(item.id);
+                    }
+                  });
+                },
               );
             },
           );
@@ -143,25 +138,4 @@ class _PickUnassignedItemsScreenState extends State<PickUnassignedItemsScreen> {
     );
   }
 
-  Widget _buildLeading(Item item) {
-    String imageUrl = '';
-    if (item.photo.isNotEmpty && item.record != null) {
-      imageUrl = widget.pb.files.getUrl(item.record!, item.photo).toString();
-    }
-
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withAlpha(10),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: imageUrl.isNotEmpty
-            ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
-            : const Icon(Icons.inventory_2_outlined, size: 20),
-      ),
-    );
-  }
 }

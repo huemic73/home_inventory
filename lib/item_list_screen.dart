@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import 'models.dart';
-import 'item_detail_screen.dart';
 import 'pick_unassigned_items_screen.dart';
 import 'qr_display_screen.dart'; 
 import 'ui_components.dart';
@@ -124,72 +123,16 @@ class _ItemListScreenState extends State<ItemListScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
                 itemCount: items.length,
-                itemBuilder: (context, index) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildItemCard(context, items[index]),
+                itemBuilder: (context, index) => InventoryListTile(
+                  entity: items[index],
+                  pb: widget.pb,
+                  onRefresh: _refreshItems,
                 ),
               );
             },
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildItemCard(BuildContext context, Item item) {
-    String imageUrl = '';
-    if (item.photo.isNotEmpty && item.record != null) {
-      imageUrl = widget.pb.files.getUrl(item.record!, item.photo).toString();
-    }
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tags = item.record?.get<List<RecordModel>?>('expand.tags') ?? [];
-
-    return Container(
-      decoration: BoxDecoration(color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(24), boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))]),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 60, height: 60,
-          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(15), borderRadius: BorderRadius.circular(16)),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: imageUrl.isNotEmpty ? Image.network(imageUrl, fit: BoxFit.cover) : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary.withAlpha(150)),
-          ),
-        ),
-        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${item.quantity} Stück', style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200))),
-            if (tags.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: tags.map((t) {
-                  final tag = Tag.fromRecord(t);
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tag.colorData.withAlpha(20),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      tag.name,
-                      style: TextStyle(color: tag.colorData, fontSize: 8, fontWeight: FontWeight.bold),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right, size: 20),
-        onTap: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (context) => ItemDetailScreen(item: item, pb: widget.pb)));
-          _refreshItems();
-        },
-      ),
     );
   }
 

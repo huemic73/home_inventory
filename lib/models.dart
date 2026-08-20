@@ -1,5 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:flutter/material.dart';
+import 'item_detail_screen.dart';
+import 'container_list_screen.dart';
 
 // Zentrale Konfiguration für QR-Codes (v2.0)
 const String qrBaseUrl = 'https://home-inventory.app';
@@ -11,14 +13,31 @@ enum NodeType {
   container  // z.B. Kiste, Tasche
 }
 
-class StorageNode {
+/// Gemeinsames Interface für alles, was in Listen angezeigt werden kann
+abstract class InventoryEntity {
+  String get id;
+  String get name;
+  String? get photo;
+  String get secondaryInfo; 
+  IconData get icon;
+  List<Tag> get tags;
+  RecordModel? get record;
+  
+  VoidCallback getAction(BuildContext context, PocketBase pb, {VoidCallback? onRefresh});
+}
+
+class StorageNode implements InventoryEntity {
+  @override
   final String id;
+  @override
   final String name;
   final NodeType type;
   final String iconName;
+  @override
   final String photo;
   final String labelId;
   final String? parentId;
+  @override
   final RecordModel record;
 
   StorageNode({
@@ -64,6 +83,25 @@ class StorageNode {
     }
   }
 
+  @override
+  IconData get icon => iconData;
+
+  @override
+  String get secondaryInfo => type.name.toUpperCase();
+
+  @override
+  List<Tag> get tags => []; // Nodes haben aktuell keine Tags in der DB
+
+  @override
+  VoidCallback getAction(BuildContext context, PocketBase pb, {VoidCallback? onRefresh}) {
+    return () async {
+      await Navigator.push(context, MaterialPageRoute(
+        builder: (context) => ContainerListScreen(pb: pb, parentNode: this)
+      ));
+      if (onRefresh != null) onRefresh();
+    };
+  }
+
   /// Hilfsmethode: Darf diese Node Kinder vom Typ Node enthalten?
   bool get canContainNodes => type != NodeType.container || true; // Container-in-Container erlaubt
 
@@ -82,19 +120,19 @@ class StorageNode {
         return true; // Darf fast überall rein
     }
   }
-
-  /// Gibt den hierarchischen Pfad dieser Node als Liste zurück (für Breadcrumbs)
-  /// Hinweis: Da PocketBase standardmäßig keine unendliche Expansion macht, 
-  /// laden wir den Pfad bei Bedarf in der UI oder via Helper.
 }
 
-class Item {
+class Item implements InventoryEntity {
+  @override
   final String id;
+  @override
   final String name;
   final int quantity;
+  @override
   final String photo;
   final String? nodeId; // Verweis auf die neue StorageNode
   final List<String> tagIds; // Neu: Liste der Tag-IDs
+  @override
   final RecordModel? record;
 
   Item({
@@ -117,6 +155,37 @@ class Item {
       tagIds: record.getListValue<String>('tags'),
       record: record,
     );
+  }
+
+  @override
+  IconData get icon => Icons.inventory_2_outlined;
+
+  @override
+  String get secondaryInfo {
+    final nodeName = record?.get<RecordModel?>('expand.node')?.getStringValue('name') ?? '';
+    if (nodeName.isNotEmpty) {
+      return '$quantity Stück · $nodeName';
+    }
+    return '$quantity Stück';
+  }
+
+  @override
+  List<Tag> get tags {
+    final expandedTags = record?.get<List<dynamic>?>('expand.tags') ?? [];
+    return expandedTags
+        .whereType<RecordModel>()
+        .map((r) => Tag.fromRecord(r))
+        .toList();
+  }
+
+  @override
+  VoidCallback getAction(BuildContext context, PocketBase pb, {VoidCallback? onRefresh}) {
+    return () async {
+      final res = await Navigator.push(context, MaterialPageRoute(
+        builder: (context) => ItemDetailScreen(item: this, pb: pb)
+      ));
+      if (res == true) onRefresh?.call();
+    };
   }
 }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import 'models.dart';
-import 'container_list_screen.dart';
 import 'item_list_screen.dart';
 import 'move_container_screen.dart';
 import 'pick_unassigned_items_screen.dart';
@@ -180,7 +179,43 @@ class _RoomListScreenState extends State<RoomListScreen> {
                       shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 400, mainAxisExtent: 180, mainAxisSpacing: 20, crossAxisSpacing: 20),
                       itemCount: nodes.length,
-                      itemBuilder: (context, index) => _buildNodeCard(context, nodes[index]),
+                      itemBuilder: (context, index) {
+                        final node = nodes[index];
+                        return InventoryCard(
+                          entity: node,
+                          pb: widget.pb,
+                          onRefresh: _refreshNodes,
+                          subtitleOverride: '${_totalItemCounts[node.id] ?? 0} Artikel · ${_childNodeCounts[node.id] ?? 0} Unterelemente',
+                          popupMenu: PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_horiz), 
+                            onSelected: (val) async { 
+                              if (val == 'edit') {
+                                _showAddNodeDialog(context, node: node);
+                              } else if (val == 'move') {
+                                final result = await Navigator.push(
+                                  context, 
+                                  MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, node: node))
+                                );
+                                if (result == true) _refreshNodes();
+                              } else if (val == 'pick') {
+                                final result = await Navigator.push(
+                                  context, 
+                                  MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: node))
+                                );
+                                if (result == true) _refreshNodes();
+                              } else if (val == 'delete') {
+                                _showDeleteConfirmDialog(context, node); 
+                              }
+                            }, 
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), 
+                              const PopupMenuItem(value: 'pick', child: Text('Artikel einsortieren')), 
+                              const PopupMenuItem(value: 'move', child: Text('Verschieben')),
+                              const PopupMenuItem(value: 'delete', child: Text('Löschen'))
+                            ],
+                          ),
+                        );
+                      },
                     ),
                 ]),
               ),
@@ -229,93 +264,6 @@ class _RoomListScreenState extends State<RoomListScreen> {
         subtitle: Text(_unassignedItemCount > 0 ? '$_unassignedItemCount Artikel warten auf einen Platz' : 'Alles perfekt einsortiert!', style: TextStyle(color: _unassignedItemCount > 0 || isDark ? Colors.white70 : Colors.black54)),
         trailing: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: _unassignedItemCount > 0 || isDark ? Colors.white24 : Colors.black12, shape: BoxShape.circle), child: Icon(_unassignedItemCount > 0 ? Icons.arrow_forward : Icons.check, color: _unassignedItemCount > 0 || isDark ? Colors.white : Colors.black54)),
         onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListScreen(pb: widget.pb, onlyUnassigned: true))); _refreshNodes(); },
-      ),
-    );
-  }
-
-  Widget _buildNodeCard(BuildContext context, StorageNode node) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    String imageUrl = node.photo.isNotEmpty 
-        ? widget.pb.files.getUrl(node.record, node.photo).toString() 
-        : '';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color, 
-        borderRadius: BorderRadius.circular(32), 
-        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 4))]
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(32),
-          onTap: () async { 
-            await Navigator.push(context, MaterialPageRoute(builder: (context) => ContainerListScreen(pb: widget.pb, parentNode: node))); 
-            _refreshNodes(); 
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 60, height: 60,
-                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(20), borderRadius: BorderRadius.circular(16)),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: imageUrl.isNotEmpty 
-                          ? Image.network(imageUrl, fit: BoxFit.cover) 
-                          : Icon(node.iconData, color: Theme.of(context).colorScheme.primary, size: 28),
-                      ),
-                    ),
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_horiz), 
-                      onSelected: (val) async { 
-                        if (val == 'edit') {
-                          _showAddNodeDialog(context, node: node);
-                        } else if (val == 'move') {
-                          final result = await Navigator.push(
-                            context, 
-                            MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, node: node))
-                          );
-                          if (result == true) _refreshNodes();
-                        } else if (val == 'pick') {
-                          final result = await Navigator.push(
-                            context, 
-                            MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: node))
-                          );
-                          if (result == true) _refreshNodes();
-                        } else if (val == 'delete') {
-                          _showDeleteConfirmDialog(context, node); 
-                        }
-                      }, 
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), 
-                        const PopupMenuItem(value: 'pick', child: Text('Artikel einsortieren')), 
-                        const PopupMenuItem(value: 'move', child: Text('Verschieben')),
-                        const PopupMenuItem(value: 'delete', child: Text('Löschen'))
-                      ],
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  node.name.isEmpty ? 'Unbenannter Bereich' : node.name, 
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_totalItemCounts[node.id] ?? 0} Artikel · ${_childNodeCounts[node.id] ?? 0} Unterelemente', 
-                  style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(180), fontWeight: FontWeight.w600, fontSize: 12)
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

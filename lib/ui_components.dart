@@ -274,6 +274,161 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) => height != oldDelegate.height;
 }
 
+/// Generalisiertes Listen-Element für alles (Items, Container, etc.)
+class InventoryListTile extends StatelessWidget {
+  final InventoryEntity entity;
+  final PocketBase pb;
+  final VoidCallback? onRefresh;
+  final List<Widget>? trailingActions;
+  final Widget? trailingOverride;
+  final VoidCallback? onTapOverride;
+
+  const InventoryListTile({
+    super.key, 
+    required this.entity, 
+    required this.pb,
+    this.onRefresh,
+    this.trailingActions,
+    this.trailingOverride,
+    this.onTapOverride,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4))]
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
+        leading: Container(
+          width: 60, height: 60,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withAlpha(15), 
+            borderRadius: BorderRadius.circular(16)
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: (entity.photo?.isNotEmpty ?? false) && entity.record != null
+                ? Image.network(pb.files.getUrl(entity.record!, entity.photo!).toString(), fit: BoxFit.cover) 
+                : Icon(entity.icon, color: Theme.of(context).colorScheme.primary.withAlpha(150)),
+          ),
+        ),
+        title: Text(entity.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(entity.secondaryInfo, style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200))),
+            if (entity.tags.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 4, runSpacing: 4,
+                children: entity.tags.map((tag) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: tag.colorData.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    tag.name,
+                    style: TextStyle(color: tag.colorData, fontSize: 8, fontWeight: FontWeight.bold),
+                  ),
+                )).toList(),
+              ),
+            ],
+          ],
+        ),
+        trailing: trailingOverride ?? Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (trailingActions != null) ...trailingActions!,
+            const Icon(Icons.chevron_right, size: 20),
+          ],
+        ),
+        onTap: onTapOverride ?? () => entity.getAction(context, pb, onRefresh: onRefresh)(),
+      ),
+    );
+  }
+}
+
+/// Grid-Element für alles (Items, Container, etc.)
+class InventoryCard extends StatelessWidget {
+  final InventoryEntity entity;
+  final PocketBase pb;
+  final VoidCallback? onRefresh;
+  final String? subtitleOverride;
+  final Widget? popupMenu;
+
+  const InventoryCard({
+    super.key,
+    required this.entity,
+    required this.pb,
+    this.onRefresh,
+    this.subtitleOverride,
+    this.popupMenu,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 4))]
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(32),
+          onTap: () => entity.getAction(context, pb, onRefresh: onRefresh)(),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 60, height: 60,
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(20), borderRadius: BorderRadius.circular(16)),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: (entity.photo?.isNotEmpty ?? false) && entity.record != null
+                          ? Image.network(pb.files.getUrl(entity.record!, entity.photo!).toString(), fit: BoxFit.cover) 
+                          : Icon(entity.icon, color: Theme.of(context).colorScheme.primary, size: 28),
+                      ),
+                    ),
+                    if (popupMenu != null) popupMenu!,
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  entity.name.isEmpty ? 'Unbenannt' : entity.name, 
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitleOverride ?? entity.secondaryInfo, 
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(180), fontWeight: FontWeight.w600, fontSize: 12)
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Zentrales Formular-Objekt für alle Eingaben
 class InventoryForm extends StatefulWidget {
   final String title;
