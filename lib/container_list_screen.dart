@@ -40,7 +40,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   Future<Map<String, dynamic>> _fetchData() async {
     // 1. Alle relevanten Daten laden
     final allNodesRecords = await widget.pb.collection('nodes').getFullList();
-    final allItemsRecords = await widget.pb.collection('items').getFullList(expand: 'tags');
+    final allItemsRecords = await widget.pb.collection('items').getFullList(expand: 'node,tags');
 
     // Pfad berechnen
     final Map<String, StorageNode> allNodesMap = {

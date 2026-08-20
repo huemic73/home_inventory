@@ -88,11 +88,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     final imageUrl = _getImageUrl();
 
     // Pfad berechnen
-    String path = 'Ohne Zuordnung';
-    final nodeRecord = _currentRecord?.get<RecordModel?>('expand.node');
-    if (nodeRecord != null) {
-      path = nodeRecord.getStringValue('name');
-    }
+    final path = _currentRecord?.getStringValue('expand.node.name', 'Ohne Zuordnung')
+        ?? 'Ohne Zuordnung';
 
     final tags = _currentRecord?.get<List<RecordModel>?>('expand.tags') ?? [];
 
