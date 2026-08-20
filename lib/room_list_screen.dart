@@ -144,7 +144,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
           ),
           InventoryAction(
             label: 'Neuer Gegenstand (Unsortiert)',
-            icon: Icons.inventory_2_outlined,
+            icon: Icons.label_outlined,
             onTap: () => _showAddItemDialog(context),
           ),
         ],

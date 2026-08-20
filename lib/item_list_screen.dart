@@ -102,14 +102,14 @@ class _ItemListScreenState extends State<ItemListScreen> {
         actions: [
           InventoryAction(
             label: 'Neuer Gegenstand',
-            icon: Icons.inventory_2_outlined,
+            icon: Icons.label_outlined,
             isPrimary: true,
             onTap: () => _showAddItemDialog(context),
           ),
           if (widget.node != null)
             InventoryAction(
               label: 'Artikel hier einsortieren',
-              icon: Icons.playlist_add,
+              icon: Icons.move_to_inbox_outlined,
               onTap: () async {
                 final res = await Navigator.push(
                   context, 

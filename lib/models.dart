@@ -100,7 +100,7 @@ class StorageNode implements InventoryEntity {
       case NodeType.area: return Icons.domain;
       case NodeType.room: return Icons.meeting_room;
       case NodeType.location: return Icons.shelves;
-      case NodeType.container: return Icons.inventory_2;
+      case NodeType.container: return Icons.inventory_2_outlined;
     }
   }
 
@@ -179,7 +179,7 @@ class Item implements InventoryEntity {
   }
 
   @override
-  IconData get icon => Icons.inventory_2_outlined;
+  IconData get icon => Icons.label_outlined;
 
   @override
   String get secondaryInfo {

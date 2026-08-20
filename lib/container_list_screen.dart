@@ -167,18 +167,18 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         actions: [
           InventoryAction(
             label: 'Neuer Gegenstand',
-            icon: Icons.inventory_2_outlined,
+            icon: Icons.label_outlined,
             isPrimary: true,
             onTap: () => _showAddItemDialog(context),
           ),
           InventoryAction(
             label: 'Neue(r) ${widget.parentNode.type.defaultChildType.label}',
-            icon: Icons.add_location_alt_outlined,
+            icon: Icons.add_box_outlined,
             onTap: () => _showAddNodeDialog(context),
           ),
           InventoryAction(
             label: 'Artikel hier einsortieren',
-            icon: Icons.playlist_add,
+            icon: Icons.move_to_inbox_outlined,
             onTap: () async {
               final res = await Navigator.push(
                 context, 
