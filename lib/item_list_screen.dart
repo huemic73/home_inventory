@@ -164,10 +164,12 @@ class _ItemListScreenState extends State<ItemListScreen> {
         title: 'Gegenstand hinzufügen',
         showQuantity: true,
         showTagSelector: true,
+        showDescription: true,
         pb: widget.pb,
-        onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
+        onSave: (name, description, quantity, imageFile, icon, labelId, type, tagIds) async {
           final Map<String, dynamic> body = {
             'name': name, 
+            'description': description,
             'quantity': quantity,
             'tags': tagIds,
           };
@@ -176,7 +178,8 @@ class _ItemListScreenState extends State<ItemListScreen> {
           }
           List<http.MultipartFile> files = [];
           if (imageFile != null) {
-            files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+            final bytes = await imageFile.readAsBytes();
+            files.add(http.MultipartFile.fromBytes('photo', bytes, filename: imageFile.name));
           }
           try {
             await widget.pb.collection('items').create(body: body, files: files);

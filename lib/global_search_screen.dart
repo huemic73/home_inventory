@@ -48,7 +48,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       List<String> filterParts = [];
       
       if (query.isNotEmpty) {
-        filterParts.add('(name ~ "$query" || tags.name ~ "$query")');
+        filterParts.add('(name ~ "$query" || description ~ "$query" || tags.name ~ "$query")');
       }
       
       for (var id in _selectedTagIds) {

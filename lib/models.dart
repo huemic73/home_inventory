@@ -149,6 +149,7 @@ class Item implements InventoryEntity {
   @override
   final String name;
   final int quantity;
+  final String description; // Neues Feld
   @override
   final String photo;
   final String? nodeId; // Verweis auf die neue StorageNode
@@ -160,6 +161,7 @@ class Item implements InventoryEntity {
     required this.id,
     required this.name,
     required this.quantity,
+    this.description = '',
     required this.photo,
     this.nodeId,
     this.tagIds = const [],
@@ -171,6 +173,7 @@ class Item implements InventoryEntity {
       id: record.id,
       name: record.getStringValue('name'),
       quantity: record.getIntValue('quantity'),
+      description: record.getStringValue('description'),
       photo: record.getStringValue('photo'),
       nodeId: record.getStringValue('node'),
       tagIds: record.getListValue<String>('tags'),

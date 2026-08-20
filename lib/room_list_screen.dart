@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'models.dart';
 import 'item_list_screen.dart';
 import 'move_container_screen.dart';
@@ -293,18 +294,19 @@ class _RoomListScreenState extends State<RoomListScreen> {
         showIcons: true,
         showTypeSelector: true, // Erlaube Wahl zwischen AREA und ROOM
         pb: widget.pb,
-        onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
+        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts) async {
           final data = {
-            'name': name, 
-            'icon': icon, 
-            'type': type.name,
+            'name': n, 
+            'icon': i, 
+            'type': t.toString().split('.').last,
             'parent': '',
           };
-          if (node != null) data['type'] = node.type.name;
+          if (node != null) data['type'] = node.type.toString().split('.').last;
 
           List<http.MultipartFile> files = [];
-          if (imageFile != null) {
-            files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+          if (f != null) {
+            final bytes = await f.readAsBytes();
+            files.add(http.MultipartFile.fromBytes('photo', bytes, filename: f.name));
           }
 
           try {
@@ -333,16 +335,18 @@ class _RoomListScreenState extends State<RoomListScreen> {
         showQuantity: true,
         showTagSelector: true,
         pb: widget.pb,
-        onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
+        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts) async {
           final Map<String, dynamic> body = {
-            'name': name, 
-            'quantity': quantity,
-            'tags': tagIds,
+            'name': n, 
+            'description': d,
+            'quantity': q,
+            'tags': ts,
             'node': '', // Ohne Zuordnung
           };
           List<http.MultipartFile> files = [];
-          if (imageFile != null) {
-            files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+          if (f != null) {
+            final bytes = await f.readAsBytes();
+            files.add(http.MultipartFile.fromBytes('photo', bytes, filename: f.name));
           }
           try {
             await widget.pb.collection('items').create(body: body, files: files);

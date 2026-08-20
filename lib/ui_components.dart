@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -411,20 +412,114 @@ class InventoryListTile extends StatelessWidget {
           children: [
             Text(entity.secondaryInfo, style: TextStyle(color: Theme.of(context).colorScheme.primary.withAlpha(200))),
             if (entity.tags.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 4, runSpacing: 4,
-                children: entity.tags.map((tag) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: tag.colorData.withAlpha(20),
-                    borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 28,
+                child: ShaderMask(
+                  shaderCallback: (Rect bounds) {
+                    return LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.white,
+                        Colors.white.withAlpha(0),
+                      ],
+                      stops: const [0.9, 1.0],
+                    ).createShader(bounds);
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: entity.tags.length,
+                    padding: const EdgeInsets.only(right: 20),
+                    separatorBuilder: (context, index) => const SizedBox(width: 6),
+                    itemBuilder: (context, index) {
+                      final tag = entity.tags[index];
+                      return GestureDetector(
+                        onLongPress: () async {
+                          if (entity.record == null || entity.record!.collectionName != 'items') return;
+
+                          final result = await showModalBottomSheet<String>(
+                            context: context,
+                            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+                            builder: (context) => SafeArea(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(height: 16),
+                                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withAlpha(50), borderRadius: BorderRadius.circular(2))),
+                                  const SizedBox(height: 16),
+                                  Text('Tag: ${tag.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  const SizedBox(height: 16),
+                                  ListTile(
+                                    leading: const Icon(Icons.label_off_outlined),
+                                    title: const Text('Von diesem Artikel entfernen'),
+                                    onTap: () => Navigator.pop(context, 'remove'),
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+                                    title: const Text('Systemweit löschen', style: TextStyle(color: Colors.red)),
+                                    subtitle: const Text('Löscht den Tag bei allen Artikeln komplett'),
+                                    onTap: () => Navigator.pop(context, 'delete'),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                              ),
+                            ),
+                          );
+
+                          if (result == 'remove') {
+                            try {
+                              final List<String> currentTags = List<String>.from(entity.record!.getListValue<String>('tags'));
+                              currentTags.remove(tag.id);
+                              await pb.collection('items').update(entity.id, body: {'tags': currentTags});
+                              if (onRefresh != null) onRefresh!();
+                            } catch (e) {
+                              debugPrint('Fehler: $e');
+                            }
+                          } else if (result == 'delete') {
+                            final confirmDelete = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Endgültig löschen?'),
+                                content: Text('Soll der Tag "${tag.name}" wirklich systemweit entfernt werden?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Abbrechen')),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(context, true), 
+                                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                    child: const Text('Jetzt löschen'),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirmDelete == true) {
+                              try {
+                                await pb.collection('tags').delete(tag.id);
+                                if (onRefresh != null) onRefresh!();
+                              } catch (e) {
+                                debugPrint('Fehler: $e');
+                              }
+                            }
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: tag.colorData.withAlpha(30),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: tag.colorData.withAlpha(50)),
+                          ),
+                          child: Text(
+                            tag.name,
+                            style: TextStyle(color: tag.colorData, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  child: Text(
-                    tag.name,
-                    style: TextStyle(color: tag.colorData, fontSize: 8, fontWeight: FontWeight.bold),
-                  ),
-                )).toList(),
+                ),
               ),
             ],
           ],
@@ -515,10 +610,22 @@ class InventoryCard extends StatelessWidget {
   }
 }
 
+typedef InventorySaveCallback = FutureOr<void> Function(
+  String name, 
+  String description, 
+  int quantity, 
+  XFile? imageFile, 
+  String icon, 
+  String labelId, 
+  NodeType type, 
+  List<String> tagIds
+);
+
 /// Zentrales Formular-Objekt für alle Eingaben
 class InventoryForm extends StatefulWidget {
   final String title;
   final String? initialName;
+  final String? initialDescription;
   final String? initialPhotoUrl;
   final int? initialQuantity;
   final String? initialIcon;
@@ -530,13 +637,15 @@ class InventoryForm extends StatefulWidget {
   final bool showQrScanner;
   final bool showTypeSelector;
   final bool showTagSelector;
+  final bool showDescription;
   final PocketBase pb;
-  final Function(String name, int quantity, XFile? imageFile, String icon, String labelId, NodeType type, List<String> tagIds) onSave;
+  final InventorySaveCallback onSave;
 
   const InventoryForm({
     super.key,
     required this.title,
     this.initialName,
+    this.initialDescription,
     this.initialPhotoUrl,
     this.initialQuantity,
     this.initialIcon,
@@ -548,6 +657,7 @@ class InventoryForm extends StatefulWidget {
     this.showQrScanner = false,
     this.showTypeSelector = false,
     this.showTagSelector = false,
+    this.showDescription = false,
     required this.pb,
     required this.onSave,
   });
@@ -558,7 +668,9 @@ class InventoryForm extends StatefulWidget {
 
 class _InventoryFormState extends State<InventoryForm> {
   late TextEditingController _nameController;
+  late TextEditingController _descriptionController;
   late TextEditingController _quantityController;
+  late TextEditingController _tagFilterController;
   late String _selectedIcon;
   late String _currentLabelId;
   late NodeType _selectedType;
@@ -570,7 +682,9 @@ class _InventoryFormState extends State<InventoryForm> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName);
+    _descriptionController = TextEditingController(text: widget.initialDescription);
     _quantityController = TextEditingController(text: (widget.initialQuantity ?? 1).toString());
+    _tagFilterController = TextEditingController();
     _selectedIcon = widget.initialIcon ?? 'inventory_2';
     _currentLabelId = widget.initialLabelId ?? '';
     _selectedType = widget.initialType ?? NodeType.container;
@@ -692,7 +806,9 @@ class _InventoryFormState extends State<InventoryForm> {
   @override
   void dispose() {
     _nameController.dispose();
+    _descriptionController.dispose();
     _quantityController.dispose();
+    _tagFilterController.dispose();
     super.dispose();
   }
 
@@ -789,6 +905,7 @@ class _InventoryFormState extends State<InventoryForm> {
                 const SizedBox(height: 16),
               ],
               _buildFormTextField(controller: _nameController, label: 'Name', icon: Icons.label_outline, isDark: isDark),
+              if (widget.showDescription) ...[const SizedBox(height: 16), _buildFormTextField(controller: _descriptionController, label: 'Beschreibung', icon: Icons.description_outlined, isDark: isDark, maxLines: 5, minLines: 3)],
               if (widget.showQuantity) ...[const SizedBox(height: 16), _buildFormTextField(controller: _quantityController, label: 'Anzahl', icon: Icons.numbers, isDark: isDark, keyboardType: TextInputType.number)],
               if (widget.showQrScanner) ...[
                 const SizedBox(height: 16),
@@ -843,33 +960,56 @@ class _InventoryFormState extends State<InventoryForm> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _allTags.map((tag) {
-                      final isSelected = _selectedTagIds.contains(tag.id);
-                      return GestureDetector(
-                        onLongPress: () => _confirmDeleteTag(tag),
-                        child: FilterChip(
-                          label: Text(tag.name, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : null)),
-                          selected: isSelected,
-                          selectedColor: tag.colorData,
-                          onSelected: (val) {
-                            setState(() {
-                              if (val) {
-                                _selectedTagIds.add(tag.id);
-                              } else {
-                                _selectedTagIds.remove(tag.id);
-                              }
-                            });
-                          },
-                          showCheckmark: false,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      );
-                    }).toList(),
+                TextField(
+                  controller: _tagFilterController,
+                  onChanged: (val) => setState(() {}),
+                  style: const TextStyle(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Tags filtern...',
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.all(12),
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withAlpha(5) : Colors.black.withAlpha(5),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 150),
+                  child: SingleChildScrollView(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _allTags.where((tag) {
+                          if (_tagFilterController.text.isEmpty) return true;
+                          return tag.name.toLowerCase().contains(_tagFilterController.text.toLowerCase());
+                        }).map((tag) {
+                          final isSelected = _selectedTagIds.contains(tag.id);
+                          return GestureDetector(
+                            onLongPress: () => _confirmDeleteTag(tag),
+                            child: FilterChip(
+                              label: Text(tag.name, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : null)),
+                              selected: isSelected,
+                              selectedColor: tag.colorData,
+                              onSelected: (val) {
+                                setState(() {
+                                  if (val) {
+                                    _selectedTagIds.add(tag.id);
+                                  } else {
+                                    _selectedTagIds.remove(tag.id);
+                                  }
+                                });
+                              },
+                              showCheckmark: false,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -877,7 +1017,7 @@ class _InventoryFormState extends State<InventoryForm> {
           ),
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')), FilledButton(onPressed: () { if (_nameController.text.isNotEmpty) { widget.onSave(_nameController.text.trim(), int.tryParse(_quantityController.text) ?? 1, _pickedFile, _selectedIcon, _currentLabelId, _selectedType, _selectedTagIds); } }, style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)), child: const Text('Speichern', style: TextStyle(fontWeight: FontWeight.bold)))],
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')), FilledButton(onPressed: () { if (_nameController.text.isNotEmpty) { widget.onSave(_nameController.text.trim(), _descriptionController.text.trim(), int.tryParse(_quantityController.text) ?? 1, _pickedFile, _selectedIcon, _currentLabelId, _selectedType, _selectedTagIds); } }, style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)), child: const Text('Speichern', style: TextStyle(fontWeight: FontWeight.bold)))],
     );
   }
 
@@ -910,7 +1050,21 @@ class _InventoryFormState extends State<InventoryForm> {
     }
   }
 
-  Widget _buildFormTextField({required TextEditingController controller, required String label, required IconData icon, required bool isDark, TextInputType keyboardType = TextInputType.text}) {
-    return TextField(controller: controller, keyboardType: keyboardType, decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon, color: isDark ? Colors.white70 : Colors.black54), filled: true, fillColor: isDark ? Colors.white.withAlpha(5) : Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2))));
+  Widget _buildFormTextField({required TextEditingController controller, required String label, required IconData icon, required bool isDark, TextInputType keyboardType = TextInputType.text, int maxLines = 1, int? minLines}) {
+    return TextField(
+      controller: controller, 
+      keyboardType: keyboardType, 
+      maxLines: maxLines,
+      minLines: minLines,
+      decoration: InputDecoration(
+        labelText: label, 
+        prefixIcon: Icon(icon, color: isDark ? Colors.white70 : Colors.black54), 
+        filled: true, 
+        fillColor: isDark ? Colors.white.withAlpha(5) : Colors.white, 
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), 
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), 
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2))
+      )
+    );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'models.dart';
 import 'move_container_screen.dart';
 import 'pick_unassigned_items_screen.dart';
@@ -315,17 +316,18 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         showIcons: true,
         showTypeSelector: true,
         pb: widget.pb,
-        onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
+        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts) async {
           final data = {
-            'name': name,
-            'icon': icon,
+            'name': n,
+            'icon': i,
             'parent': widget.parentNode.id,
-            'type': type.name,
+            'type': t.toString().split('.').last,
           };
           
           List<http.MultipartFile> files = [];
-          if (imageFile != null) {
-            files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+          if (f != null) {
+            final bytes = await f.readAsBytes();
+            files.add(http.MultipartFile.fromBytes('photo', bytes, filename: f.name));
           }
 
           try {
@@ -376,17 +378,19 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         showQuantity: true,
         showTagSelector: true,
         pb: widget.pb,
-        onSave: (name, quantity, imageFile, icon, labelId, type, tagIds) async {
+        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts) async {
           final data = {
-            'name': name,
-            'quantity': quantity,
+            'name': n,
+            'description': d,
+            'quantity': q,
             'node': widget.parentNode.id,
-            'tags': tagIds,
+            'tags': ts,
           };
           
           List<http.MultipartFile> files = [];
-          if (imageFile != null) {
-            files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+          if (f != null) {
+            final bytes = await f.readAsBytes();
+            files.add(http.MultipartFile.fromBytes('photo', bytes, filename: f.name));
           }
 
           try {
