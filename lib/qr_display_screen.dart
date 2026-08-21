@@ -20,6 +20,8 @@ class QrDisplayScreen extends StatelessWidget {
 
   Future<void> _printQrCode(BuildContext context) async {
     try {
+      final font = await PdfGoogleFonts.outfitRegular();
+      final boldFont = await PdfGoogleFonts.outfitBold();
       final doc = pw.Document();
 
       doc.addPage(
@@ -30,11 +32,11 @@ class QrDisplayScreen extends StatelessWidget {
               child: pw.Column(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
-                  pw.Text('Home Inventory', style: pw.TextStyle(fontSize: 40, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('Home Inventory', style: pw.TextStyle(fontSize: 40, font: boldFont)),
                   pw.SizedBox(height: 20),
-                  pw.Text(_name, style: pw.TextStyle(fontSize: 30)),
+                  pw.Text(_name, style: pw.TextStyle(fontSize: 30, font: font)),
                   pw.SizedBox(height: 10),
-                  pw.Text(container != null ? 'Container / Box' : 'Artikel', style: pw.TextStyle(fontSize: 18, color: PdfColors.grey700)),
+                  pw.Text(container != null ? 'Container / Box' : 'Artikel', style: pw.TextStyle(fontSize: 18, font: font, color: PdfColors.grey700)),
                   pw.SizedBox(height: 40),
                   pw.Container(
                     width: 300,
@@ -49,7 +51,7 @@ class QrDisplayScreen extends StatelessWidget {
                     ),
                   ),
                   pw.SizedBox(height: 40),
-                  pw.Text('ID: $_id', style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                  pw.Text('ID: $_id', style: pw.TextStyle(fontSize: 12, font: font, color: PdfColors.grey700)),
                 ],
               ),
             );

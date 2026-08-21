@@ -16,7 +16,9 @@ class BulkQrPrintScreen extends StatefulWidget {
 
 class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
   List<StorageNode> _allContainers = [];
+  List<StorageNode> _filteredContainers = [];
   final Set<String> _selectedIds = {};
+  NodeType? _selectedTypeFilter;
   bool _isLoading = true;
 
   @override
@@ -27,19 +29,74 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
 
   Future<void> _loadContainers() async {
     final records = await widget.pb.collection('nodes').getFullList(
-      filter: 'type = "container"',
+      filter: 'type = "container" || type = "ablageort"',
       sort: 'name', 
-      expand: 'parent'
+      expand: 'parent.parent.parent.parent.parent'
     );
     setState(() {
       _allContainers = records.map((r) => StorageNode.fromRecord(r)).toList();
       _selectedIds.addAll(_allContainers.map((c) => c.id));
+      _applyFilters();
       _isLoading = false;
     });
   }
 
+  void _applyFilters() {
+    setState(() {
+      _filteredContainers = _allContainers.where((c) {
+        return _selectedTypeFilter == null || c.type == _selectedTypeFilter;
+      }).toList();
+    });
+  }
+
+  List<StorageNode> _extractBreadcrumbs(StorageNode node) {
+    final List<StorageNode> path = [];
+    var parentList = node.record.expand['parent'];
+    var parent = parentList != null && parentList.isNotEmpty ? parentList.first : null;
+    while (parent != null) {
+      path.add(StorageNode.fromRecord(parent));
+      parentList = parent.expand['parent'];
+      parent = parentList != null && parentList.isNotEmpty ? parentList.first : null;
+    }
+    return path.reversed.toList();
+  }
+
+  String _getPathString(List<StorageNode> path) {
+    if (path.isEmpty) return '';
+    return path.map((n) => n.name).join(' › ');
+  }
+
+  Widget _buildFilterChip(NodeType? type, String label) {
+    final isSelected = _selectedTypeFilter == type;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return FilterChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: Theme.of(context).colorScheme.primary,
+      onSelected: (val) {
+        _selectedTypeFilter = type;
+        _applyFilters();
+      },
+      showCheckmark: false,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      side: BorderSide(
+        color: isSelected 
+            ? Theme.of(context).colorScheme.primary 
+            : (isDark ? Colors.white12 : Colors.grey.withAlpha(50))
+      ),
+    );
+  }
+
   Future<void> _generateAndPrint() async {
     try {
+      final font = await PdfGoogleFonts.outfitRegular();
+      final boldFont = await PdfGoogleFonts.outfitBold();
       final doc = pw.Document();
       final containersToPrint = _allContainers.where((c) => _selectedIds.contains(c.id)).toList();
 
@@ -55,7 +112,7 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
           margin: const pw.EdgeInsets.all(32),
           build: (pw.Context context) {
             List<pw.Widget> widgets = [
-              pw.Header(level: 0, text: 'Heiminventarisierung - Inventurliste'),
+              pw.Header(level: 0, text: 'Heiminventarisierung - Inventurliste', textStyle: pw.TextStyle(font: boldFont, fontSize: 18)),
               pw.SizedBox(height: 20),
             ];
 
@@ -63,7 +120,7 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
               widgets.add(
                 pw.Padding(
                   padding: const pw.EdgeInsets.symmetric(vertical: 10),
-                  child: pw.Text('Standort: $groupName', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.indigo900)),
+                  child: pw.Text('Standort: $groupName', style: pw.TextStyle(fontSize: 14, font: boldFont, color: PdfColors.indigo900)),
                 ),
               );
 
@@ -80,9 +137,9 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                       child: pw.Column(
                         mainAxisAlignment: pw.MainAxisAlignment.center,
                         children: [
-                          pw.Text(container.name, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center, maxLines: 2),
+                          pw.Text(container.name, style: pw.TextStyle(fontSize: 9, font: boldFont), textAlign: pw.TextAlign.center, maxLines: 2),
                           pw.SizedBox(height: 4),
-                          pw.Text(groupName, style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700), textAlign: pw.TextAlign.center),
+                          pw.Text(groupName, style: pw.TextStyle(fontSize: 7, font: font, color: PdfColors.grey700), textAlign: pw.TextAlign.center),
                           pw.SizedBox(height: 8),
                           pw.BarcodeWidget(
                             barcode: pw.Barcode.qrCode(errorCorrectLevel: pw.BarcodeQRCorrectionLevel.high), 
@@ -90,7 +147,7 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                             width: 75, height: 75
                           ),
                           pw.SizedBox(height: 4),
-                          pw.Text('ID: ${container.id.substring(0, 8)}', style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
+                          pw.Text('ID: ${container.id.substring(0, 8)}', style: pw.TextStyle(fontSize: 6, font: font, color: PdfColors.grey600)),
                         ],
                       ),
                     );
@@ -118,9 +175,24 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
 
     return InventoryPageLayout(
       title: 'Labels drucken',
-      subtitle: 'QR-Codes für deine Container',
+      subtitle: 'QR-Codes für deine Orte & Boxen',
       slivers: [
-        if (!_isLoading)
+        if (!_isLoading) ...[
+          // Filter Chips
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Row(
+                children: [
+                  _buildFilterChip(null, 'Alles'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(NodeType.ablageort, 'Ablageorte'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(NodeType.container, 'Container'),
+                ],
+              ),
+            ),
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
@@ -139,12 +211,12 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                     ),
                     const Spacer(),
                     TextButton(
-                      onPressed: () => setState(() => _selectedIds.clear()), 
+                      onPressed: () => setState(() => _selectedIds.removeAll(_filteredContainers.map((c) => c.id))), 
                       child: const Text('Keine')
                     ),
                     const SizedBox(width: 8),
                     FilledButton.tonal(
-                      onPressed: () => setState(() => _selectedIds.addAll(_allContainers.map((c) => c.id))), 
+                      onPressed: () => setState(() => _selectedIds.addAll(_filteredContainers.map((c) => c.id))), 
                       style: FilledButton.styleFrom(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
@@ -155,6 +227,7 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
               ),
             ),
           ),
+        ],
         if (_isLoading)
           const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
         else if (_allContainers.isEmpty)
@@ -165,8 +238,10 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  final container = _allContainers[index];
+                  final container = _filteredContainers[index];
                   final isSelected = _selectedIds.contains(container.id);
+                  final containerPath = _extractBreadcrumbs(container);
+                  final pathStr = _getPathString(containerPath);
                   String imageUrl = '';
                   if (container.photo.isNotEmpty) {
                     imageUrl = widget.pb.files.getUrl(container.record, container.photo).toString();
@@ -204,7 +279,22 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                           });
                         },
                         title: Text(container.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('ID: ${container.id.substring(0, 8)}...', style: const TextStyle(fontSize: 11)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('ID: ${container.id.substring(0, 8)}...', style: const TextStyle(fontSize: 11)),
+                            if (pathStr.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                pathStr, 
+                                style: TextStyle(
+                                  fontSize: 11, 
+                                  color: Theme.of(context).colorScheme.primary.withAlpha(200),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                         secondary: Container(
                           width: 50,
                           height: 50,
@@ -223,7 +313,7 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                     ),
                   );
                 },
-                childCount: _allContainers.length,
+                childCount: _filteredContainers.length,
               ),
             ),
           ),
