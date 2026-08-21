@@ -294,7 +294,7 @@ class InventoryPageLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hasHeaderImage = imageUrl != null && imageUrl!.isNotEmpty;
+    final hasAvatar = imageUrl != null && imageUrl!.isNotEmpty;
 
     return Scaffold(
       drawer: drawer,
@@ -313,13 +313,13 @@ class InventoryPageLayout extends StatelessWidget {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: hasHeaderImage ? 250 : (breadcrumbs != null ? 165 : 140),
+              expandedHeight: breadcrumbs != null ? 165 : 140,
               pinned: true,
               elevation: 0,
               backgroundColor: isDark 
                   ? Colors.black26 
-                  : (hasHeaderImage ? Theme.of(context).colorScheme.primary : Colors.transparent),
-              foregroundColor: isDark || hasHeaderImage ? Colors.white : Colors.black87,
+                  : Colors.transparent,
+              foregroundColor: isDark ? Colors.white : Colors.black87,
               leading: (breadcrumbs != null && breadcrumbs!.isNotEmpty)
                   ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context))
                   : null,
@@ -329,46 +329,60 @@ class InventoryPageLayout extends StatelessWidget {
                 ...?actions,
               ],
               flexibleSpace: FlexibleSpaceBar(
-                background: hasHeaderImage 
-                    ? Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          InventoryNetworkImage(imageUrl: imageUrl!, title: title),
-                          const DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Colors.black54, Colors.transparent, Colors.black87],
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : null,
+                background: null,
                 titlePadding: const EdgeInsetsDirectional.only(start: 64, bottom: 16, end: 16),
                 title: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (breadcrumbs != null && breadcrumbs!.isNotEmpty)
-                      _buildBreadcrumbs(context, isDark || hasHeaderImage),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800, 
-                        fontSize: 18, 
-                        color: isDark || hasHeaderImage ? Colors.white : Colors.black87
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      _buildBreadcrumbs(context, isDark),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (hasAvatar) ...[
+                          Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withAlpha(15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark ? Colors.white24 : Colors.black12,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: InventoryNetworkImage(
+                                imageUrl: imageUrl!,
+                                title: title,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ],
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800, 
+                              fontSize: 18, 
+                              color: isDark ? Colors.white : Colors.black87
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                     if (subtitle != null && (breadcrumbs == null || breadcrumbs!.isEmpty))
                       Text(
                         subtitle!,
                         style: TextStyle(
                           fontSize: 10, 
-                          color: isDark || hasHeaderImage ? Colors.white70 : Colors.black54
+                          color: isDark ? Colors.white70 : Colors.black54
                         ),
                       ),
                   ],
