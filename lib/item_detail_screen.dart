@@ -259,13 +259,17 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         showTagSelector: true,
         showDescription: true,
         pb: widget.pb,
-        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts) async {
+        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts, bool deleteImage) async {
           final Map<String, dynamic> body = {
             'name': n,
             'description': d,
             'quantity': q,
             'tags': ts,
           };
+
+          if (deleteImage) {
+            body['photo'] = null;
+          }
 
           List<http.MultipartFile> files = [];
           if (f != null) {

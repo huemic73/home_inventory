@@ -316,7 +316,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         showIcons: true,
         showTypeSelector: true,
         pb: widget.pb,
-        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts) async {
+        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts, bool deleteImage) async {
           final data = {
             'name': n,
             'icon': i,
@@ -324,6 +324,10 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
             'type': t.toString().split('.').last,
           };
           
+          if (deleteImage) {
+            data['photo'] = null;
+          }
+
           List<http.MultipartFile> files = [];
           if (f != null) {
             final bytes = await f.readAsBytes();

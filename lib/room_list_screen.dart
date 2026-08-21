@@ -294,7 +294,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
         showIcons: true,
         showTypeSelector: true, // Erlaube Wahl zwischen AREA und ROOM
         pb: widget.pb,
-        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts) async {
+        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts, bool deleteImage) async {
           final data = {
             'name': n, 
             'icon': i, 
@@ -302,6 +302,10 @@ class _RoomListScreenState extends State<RoomListScreen> {
             'parent': '',
           };
           if (node != null) data['type'] = node.type.toString().split('.').last;
+          
+          if (deleteImage) {
+            data['photo'] = null;
+          }
 
           List<http.MultipartFile> files = [];
           if (f != null) {

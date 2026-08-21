@@ -166,7 +166,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
         showTagSelector: true,
         showDescription: true,
         pb: widget.pb,
-        onSave: (name, description, quantity, imageFile, icon, labelId, type, tagIds) async {
+        onSave: (name, description, quantity, imageFile, icon, labelId, type, tagIds, deleteImage) async {
           final Map<String, dynamic> body = {
             'name': name, 
             'description': description,
@@ -176,6 +176,11 @@ class _ItemListScreenState extends State<ItemListScreen> {
           if (widget.node != null) {
             body['node'] = widget.node!.id;
           }
+
+          if (deleteImage) {
+            body['photo'] = null;
+          }
+
           List<http.MultipartFile> files = [];
           if (imageFile != null) {
             final bytes = await imageFile.readAsBytes();

@@ -710,7 +710,8 @@ typedef InventorySaveCallback = FutureOr<void> Function(
   String icon, 
   String labelId, 
   NodeType type, 
-  List<String> tagIds
+  List<String> tagIds,
+  bool deleteImage
 );
 
 /// Zentrales Formular-Objekt für alle Eingaben
@@ -769,6 +770,7 @@ class _InventoryFormState extends State<InventoryForm> {
   late List<String> _selectedTagIds;
   List<Tag> _allTags = [];
   XFile? _pickedFile;
+  bool _shouldDeleteImage = false;
 
   @override
   void initState() {
@@ -933,18 +935,27 @@ class _InventoryFormState extends State<InventoryForm> {
         if (file != null) {
           final croppedFile = await ImageCropper().cropImage(
             sourcePath: file.path,
-            aspectRatio: const CropAspectRatio(ratioX: 4, ratioY: 3),
             uiSettings: [
               AndroidUiSettings(
                 toolbarTitle: 'Bild zuschneiden',
-                toolbarColor: Theme.of(context).colorScheme.primary,
-                toolbarWidgetColor: Colors.white,
-                initAspectRatio: CropAspectRatioPreset.ratio4x3,
-                lockAspectRatio: true,
+                initAspectRatio: CropAspectRatioPreset.original,
+                lockAspectRatio: false,
+                aspectRatioPresets: [
+                  CropAspectRatioPreset.original,
+                  CropAspectRatioPreset.square,
+                  CropAspectRatioPreset.ratio4x3,
+                  CropAspectRatioPreset.ratio16x9,
+                ],
               ),
               IOSUiSettings(
                 title: 'Bild zuschneiden',
-                aspectRatioLockEnabled: true,
+                aspectRatioLockEnabled: false,
+                aspectRatioPresets: [
+                  CropAspectRatioPreset.original,
+                  CropAspectRatioPreset.square,
+                  CropAspectRatioPreset.ratio4x3,
+                  CropAspectRatioPreset.ratio16x9,
+                ],
               ),
               WebUiSettings(
                 context: context,
@@ -953,7 +964,10 @@ class _InventoryFormState extends State<InventoryForm> {
           );
 
           if (croppedFile != null) {
-            setState(() => _pickedFile = XFile(croppedFile.path));
+            setState(() {
+              _pickedFile = XFile(croppedFile.path);
+              _shouldDeleteImage = false;
+            });
           }
         }
       },
@@ -986,17 +1000,46 @@ class _InventoryFormState extends State<InventoryForm> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 200, width: double.infinity,
-                  decoration: BoxDecoration(color: isDark ? Colors.white.withAlpha(5) : Colors.grey.withAlpha(20), borderRadius: BorderRadius.circular(24), border: Border.all(color: isDark ? Colors.white10 : Colors.grey.withAlpha(40))),
-                  child: _pickedFile != null
-                      ? ClipRRect(borderRadius: BorderRadius.circular(24), child: kIsWeb ? Image.network(_pickedFile!.path, fit: BoxFit.cover) : Image.file(io.File(_pickedFile!.path), fit: BoxFit.cover))
-                      : (widget.initialPhotoUrl != null && widget.initialPhotoUrl!.isNotEmpty)
-                          ? InventoryNetworkImage(imageUrl: widget.initialPhotoUrl!, title: _nameController.text, borderRadius: BorderRadius.circular(24))
-                          : Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(isDark ? 30 : 10), shape: BoxShape.circle), child: Icon(Icons.add_a_photo_outlined, color: Theme.of(context).colorScheme.primary)), const SizedBox(height: 12), Text('Foto hinzufügen', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary.withAlpha(200)))]),
-                ),
+              Stack(
+                children: [
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      height: 200, width: double.infinity,
+                      decoration: BoxDecoration(color: isDark ? Colors.white.withAlpha(5) : Colors.grey.withAlpha(20), borderRadius: BorderRadius.circular(24), border: Border.all(color: isDark ? Colors.white10 : Colors.grey.withAlpha(40))),
+                      child: _shouldDeleteImage
+                          ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.red.withAlpha(isDark ? 30 : 10), shape: BoxShape.circle), child: const Icon(Icons.delete_outline, color: Colors.red)), const SizedBox(height: 12), const Text('Bild wird gelöscht', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red))])
+                          : _pickedFile != null
+                              ? ClipRRect(borderRadius: BorderRadius.circular(24), child: kIsWeb ? Image.network(_pickedFile!.path, fit: BoxFit.cover) : Image.file(io.File(_pickedFile!.path), fit: BoxFit.cover))
+                              : (widget.initialPhotoUrl != null && widget.initialPhotoUrl!.isNotEmpty)
+                                  ? InventoryNetworkImage(imageUrl: widget.initialPhotoUrl!, title: _nameController.text, borderRadius: BorderRadius.circular(24))
+                                  : Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(isDark ? 30 : 10), shape: BoxShape.circle), child: Icon(Icons.add_a_photo_outlined, color: Theme.of(context).colorScheme.primary)), const SizedBox(height: 12), Text('Foto hinzufügen', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary.withAlpha(200)))]),
+                    ),
+                  ),
+                  if ((_pickedFile != null || (widget.initialPhotoUrl != null && widget.initialPhotoUrl!.isNotEmpty)) && !_shouldDeleteImage)
+                    Positioned(
+                      top: 8, right: 8,
+                      child: IconButton.filled(
+                        onPressed: () => setState(() {
+                          _pickedFile = null;
+                          if (widget.initialPhotoUrl != null && widget.initialPhotoUrl!.isNotEmpty) {
+                            _shouldDeleteImage = true;
+                          }
+                        }),
+                        icon: const Icon(Icons.close),
+                        style: IconButton.styleFrom(backgroundColor: Colors.black54, foregroundColor: Colors.white),
+                      ),
+                    ),
+                  if (_shouldDeleteImage)
+                    Positioned(
+                      top: 8, right: 8,
+                      child: IconButton.filled(
+                        onPressed: () => setState(() => _shouldDeleteImage = false),
+                        icon: const Icon(Icons.undo),
+                        style: IconButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primary, foregroundColor: Colors.white),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 32),
               if (widget.showTypeSelector) ...[
@@ -1135,7 +1178,28 @@ class _InventoryFormState extends State<InventoryForm> {
           ),
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')), FilledButton(onPressed: () { if (_nameController.text.isNotEmpty) { widget.onSave(_nameController.text.trim(), _descriptionController.text.trim(), int.tryParse(_quantityController.text) ?? 1, _pickedFile, _selectedIcon, _currentLabelId, _selectedType, _selectedTagIds); } }, style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)), child: const Text('Speichern', style: TextStyle(fontWeight: FontWeight.bold)))],
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')), 
+        FilledButton(
+          onPressed: () { 
+            if (_nameController.text.isNotEmpty) { 
+              widget.onSave(
+                _nameController.text.trim(), 
+                _descriptionController.text.trim(), 
+                int.tryParse(_quantityController.text) ?? 1, 
+                _pickedFile, 
+                _selectedIcon, 
+                _currentLabelId, 
+                _selectedType, 
+                _selectedTagIds,
+                _shouldDeleteImage
+              ); 
+            } 
+          }, 
+          style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)), 
+          child: const Text('Speichern', style: TextStyle(fontWeight: FontWeight.bold))
+        )
+      ],
     );
   }
 
