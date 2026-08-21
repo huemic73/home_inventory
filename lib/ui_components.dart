@@ -384,18 +384,22 @@ class InventoryPageLayout extends StatelessWidget {
                   height: _calculateHeaderHeight(filterBar, filterChips, sectionTitle),
                   child: Container(
                     color: Theme.of(context).scaffoldBackgroundColor.withAlpha(250),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (filterBar != null) ...[
-                          filterBar!,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: filterBar!,
+                          ),
                           if (filterChips != null || sectionTitle != null) const SizedBox(height: 12),
                         ],
                         if (filterChips != null) ...[
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: filterChips!,
@@ -404,9 +408,12 @@ class InventoryPageLayout extends StatelessWidget {
                           if (sectionTitle != null) const SizedBox(height: 12),
                         ],
                         if (sectionTitle != null)
-                          Text(
-                            sectionTitle!,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Text(
+                              sectionTitle!,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
                           ),
                       ],
                     ),
@@ -948,6 +955,13 @@ class _InventoryFormState extends State<InventoryForm> {
                     CropAspectRatioPreset.ratio4x3,
                     CropAspectRatioPreset.ratio16x9,
                   ],
+                  toolbarColor: Theme.of(context).colorScheme.surface,
+                  toolbarWidgetColor: Theme.of(context).colorScheme.onSurface,
+                  statusBarColor: Theme.of(context).colorScheme.surface,
+                  activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  cropFrameColor: Theme.of(context).colorScheme.primary,
+                  cropGridColor: Theme.of(context).colorScheme.primary.withAlpha(80),
                 ),
                 IOSUiSettings(
                   title: 'Bild zuschneiden',
