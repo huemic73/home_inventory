@@ -997,8 +997,13 @@ class _InventoryFormState extends State<InventoryForm> {
           }
 
           if (croppedFile != null) {
+            final bytes = await croppedFile.readAsBytes();
             setState(() {
-              _pickedFile = XFile(croppedFile!.path);
+              _pickedFile = XFile.fromData(
+                bytes,
+                path: croppedFile!.path,
+                name: file.name,
+              );
               _shouldDeleteImage = false;
             });
           } else if (kIsWeb) {
