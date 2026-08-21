@@ -933,39 +933,50 @@ class _InventoryFormState extends State<InventoryForm> {
         final file = await picker.pickImage(source: source, maxWidth: 2048, maxHeight: 2048, imageQuality: 85);
         
         if (file != null) {
-          final croppedFile = await ImageCropper().cropImage(
-            sourcePath: file.path,
-            uiSettings: [
-              AndroidUiSettings(
-                toolbarTitle: 'Bild zuschneiden',
-                initAspectRatio: CropAspectRatioPreset.original,
-                lockAspectRatio: false,
-                aspectRatioPresets: [
-                  CropAspectRatioPreset.original,
-                  CropAspectRatioPreset.square,
-                  CropAspectRatioPreset.ratio4x3,
-                  CropAspectRatioPreset.ratio16x9,
-                ],
-              ),
-              IOSUiSettings(
-                title: 'Bild zuschneiden',
-                aspectRatioLockEnabled: false,
-                aspectRatioPresets: [
-                  CropAspectRatioPreset.original,
-                  CropAspectRatioPreset.square,
-                  CropAspectRatioPreset.ratio4x3,
-                  CropAspectRatioPreset.ratio16x9,
-                ],
-              ),
-              WebUiSettings(
-                context: context,
-              ),
-            ],
-          );
+          CroppedFile? croppedFile;
+          try {
+            croppedFile = await ImageCropper().cropImage(
+              sourcePath: file.path,
+              uiSettings: [
+                AndroidUiSettings(
+                  toolbarTitle: 'Bild zuschneiden',
+                  initAspectRatio: CropAspectRatioPreset.original,
+                  lockAspectRatio: false,
+                  aspectRatioPresets: [
+                    CropAspectRatioPreset.original,
+                    CropAspectRatioPreset.square,
+                    CropAspectRatioPreset.ratio4x3,
+                    CropAspectRatioPreset.ratio16x9,
+                  ],
+                ),
+                IOSUiSettings(
+                  title: 'Bild zuschneiden',
+                  aspectRatioLockEnabled: false,
+                  aspectRatioPresets: [
+                    CropAspectRatioPreset.original,
+                    CropAspectRatioPreset.square,
+                    CropAspectRatioPreset.ratio4x3,
+                    CropAspectRatioPreset.ratio16x9,
+                  ],
+                ),
+                WebUiSettings(
+                  context: context,
+                ),
+              ],
+            );
+          } catch (e) {
+            debugPrint('Fehler beim Zuschneiden des Bildes: $e');
+          }
 
           if (croppedFile != null) {
             setState(() {
-              _pickedFile = XFile(croppedFile.path);
+              _pickedFile = XFile(croppedFile!.path);
+              _shouldDeleteImage = false;
+            });
+          } else if (kIsWeb) {
+            // Falls Cropping im Web abgebrochen wird oder fehlschlägt, Originalbild übernehmen
+            setState(() {
+              _pickedFile = file;
               _shouldDeleteImage = false;
             });
           }
