@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'qr_display_screen.dart';
 import 'ui_components.dart';
+import 'move_item_screen.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   final Item item;
@@ -26,6 +27,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   late String _currentDescription;
   late int _currentQuantity;
   RecordModel? _currentRecord;
+  bool _hasChanges = false;
 
   @override
   void initState() {
@@ -70,70 +72,114 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     return list;
   }
 
+  Future<void> _refreshItem() async {
+    try {
+      final updatedRecord = await widget.pb.collection('items').getOne(
+        widget.item.id,
+        expand: 'node.parent.parent.parent.parent.parent,tags',
+      );
+      setState(() {
+        _currentRecord = updatedRecord;
+        _currentName = updatedRecord.getStringValue('name');
+        _currentDescription = updatedRecord.getStringValue('description');
+        _currentQuantity = updatedRecord.getIntValue('quantity');
+        _currentPhoto = updatedRecord.getStringValue('photo');
+      });
+    } catch (e) {
+      debugPrint('Fehler beim Aktualisieren des Artikels: $e');
+    }
+  }
+
+  Future<void> _moveItem() async {
+    final moved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MoveItemScreen(pb: widget.pb, item: Item.fromRecord(_currentRecord!)),
+      ),
+    );
+
+    if (moved == true) {
+      setState(() {
+        _hasChanges = true;
+      });
+      await _refreshItem();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final imageUrl = _getImageUrl();
     final breadcrumbs = _extractBreadcrumbs(_currentRecord);
     final tags = _getTags();
 
-    return InventoryPageLayout(
-      title: _currentName,
-      subtitle: breadcrumbs.isNotEmpty ? breadcrumbs.last.name : null,
-      imageUrl: imageUrl,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.qr_code_2),
-          tooltip: 'QR-Code',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => QrDisplayScreen(item: widget.item)),
-          ),
-        ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert),
-          tooltip: 'Optionen',
-          onSelected: (value) {
-            if (value == 'edit') {
-              _showEditItemDialog();
-            } else if (value == 'delete') {
-              _showDeleteConfirmDialog();
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-            const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-          ],
-        ),
-      ],
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                Column(
-                  children: [
-                    _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
-                    if (tags.isNotEmpty) ...[
-                      const Divider(height: 32),
-                      _buildTagsRow(context, tags),
-                    ],
-                    if (_currentDescription.isNotEmpty) ...[
-                      const Divider(height: 32),
-                      _buildInfoRow(context, 'Beschreibung', _currentDescription, Icons.description_outlined),
-                    ],
-                    const Divider(height: 32),
-                    _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
-                    const Divider(height: 32),
-                    // Standort-Zeile: Entweder als formatierten Pfad oder als Breadcrumb-Chips
-                    _buildLocationRow(context, breadcrumbs),
-                  ],
-                ),
-              ],
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        Navigator.of(context).pop(_hasChanges);
+      },
+      child: InventoryPageLayout(
+        title: _currentName,
+        subtitle: breadcrumbs.isNotEmpty ? breadcrumbs.last.name : null,
+        imageUrl: imageUrl,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_2),
+            tooltip: 'QR-Code',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => QrDisplayScreen(item: widget.item)),
             ),
           ),
-        ),
-      ],
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'Optionen',
+            onSelected: (value) {
+              if (value == 'edit') {
+                _showEditItemDialog();
+              } else if (value == 'move') {
+                _moveItem();
+              } else if (value == 'delete') {
+                _showDeleteConfirmDialog();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+              const PopupMenuItem(value: 'move', child: Text('Verschieben')),
+              const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+            ],
+          ),
+        ],
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  Column(
+                    children: [
+                      _buildInfoRow(context, 'Name', _currentName, Icons.label_outline),
+                      if (tags.isNotEmpty) ...[
+                        const Divider(height: 32),
+                        _buildTagsRow(context, tags),
+                      ],
+                      if (_currentDescription.isNotEmpty) ...[
+                        const Divider(height: 32),
+                        _buildInfoRow(context, 'Beschreibung', _currentDescription, Icons.description_outlined),
+                      ],
+                      const Divider(height: 32),
+                      _buildInfoRow(context, 'Anzahl', '$_currentQuantity Stück', Icons.numbers),
+                      const Divider(height: 32),
+                      // Standort-Zeile: Entweder als formatierten Pfad oder als Breadcrumb-Chips
+                      _buildLocationRow(context, breadcrumbs),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -293,6 +339,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               _currentQuantity = q;
               _currentPhoto = updatedRecord.getStringValue('photo');
               _currentRecord = updatedRecord;
+              _hasChanges = true;
             });
             
             if (context.mounted) {
