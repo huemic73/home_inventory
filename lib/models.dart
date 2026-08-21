@@ -136,7 +136,7 @@ class StorageNode implements InventoryEntity {
       case NodeType.raum:
         return potentialParent.type == NodeType.bereich;
       case NodeType.ablageort:
-        return potentialParent.type == NodeType.raum || potentialParent.type == NodeType.bereich;
+        return potentialParent.type == NodeType.raum || potentialParent.type == NodeType.bereich || potentialParent.type == NodeType.ablageort;
       case NodeType.container:
         return true; // Darf fast überall rein
     }

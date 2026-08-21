@@ -36,7 +36,7 @@ class StorageNode {
       case NodeType.room:
         return potentialParent.type == NodeType.area;
       case NodeType.location:
-        return potentialParent.type == NodeType.room || potentialParent.type == NodeType.area;
+        return potentialParent.type == NodeType.room || potentialParent.type == NodeType.area || potentialParent.type == NodeType.location;
       case NodeType.container:
         // Container dürfen in Orte, Räume oder andere Container ("Box-in-Box")
         return potentialParent.type == NodeType.location || 
@@ -62,12 +62,14 @@ void main() {
     final areaEG = StorageNode(id: '1', name: 'Erdgeschoss', type: NodeType.area);
     final roomKueche = StorageNode(id: '2', name: 'Küche', type: NodeType.room);
     final locSchrank = StorageNode(id: '3', name: 'Vorratsschrank', type: NodeType.location);
+    final locRegalbrett = StorageNode(id: '3b', name: 'Regalbrett 1', type: NodeType.location);
     final contBox = StorageNode(id: '4', name: 'Mehl-Box', type: NodeType.container);
     final contSubBox = StorageNode(id: '5', name: 'Kleine Dose', type: NodeType.container);
 
     test('Gültige Verschachtelungen', () {
       expect(roomKueche.canBePlacedIn(areaEG), isTrue, reason: 'Raum darf in Bereich');
       expect(locSchrank.canBePlacedIn(roomKueche), isTrue, reason: 'Ort darf in Raum');
+      expect(locRegalbrett.canBePlacedIn(locSchrank), isTrue, reason: 'Ort darf in anderen Ort');
       expect(contBox.canBePlacedIn(locSchrank), isTrue, reason: 'Container darf in Ort');
       expect(contSubBox.canBePlacedIn(contBox), isTrue, reason: 'Container darf in Container (Box-in-Box)');
     });
