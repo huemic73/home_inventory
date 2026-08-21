@@ -295,7 +295,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
         showTypeSelector: true, // Erlaube Wahl zwischen AREA und ROOM
         pb: widget.pb,
         onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts, bool deleteImage) async {
-          final data = {
+          final Map<String, dynamic> data = {
             'name': n, 
             'icon': i, 
             'type': t.toString().split('.').last,
@@ -339,7 +339,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
         showQuantity: true,
         showTagSelector: true,
         pb: widget.pb,
-        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts) async {
+        onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts, bool di) async {
           final Map<String, dynamic> body = {
             'name': n, 
             'description': d,
