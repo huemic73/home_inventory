@@ -63,9 +63,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   List<Tag> _getTags() {
     if (_currentRecord == null) return [];
     final expandedTags = _currentRecord!.expand['tags'] ?? [];
-    return expandedTags
+    final list = expandedTags
         .map((r) => Tag.fromRecord(r))
         .toList();
+    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
   }
 
   @override

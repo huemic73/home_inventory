@@ -196,9 +196,11 @@ class Item implements InventoryEntity {
   @override
   List<Tag> get tags {
     final expandedTags = record?.expand['tags'] ?? [];
-    return expandedTags
+    final list = expandedTags
         .map((r) => Tag.fromRecord(r))
         .toList();
+    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
   }
 
   @override
