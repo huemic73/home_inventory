@@ -299,7 +299,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
             'name': n, 
             'icon': i, 
             'type': t.toString().split('.').last,
-            'parent': '',
+            'parent': null,
           };
           if (node != null) data['type'] = node.type.toString().split('.').last;
           
@@ -345,7 +345,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
             'description': d,
             'quantity': q,
             'tags': ts,
-            'node': '', // Ohne Zuordnung
+            'node': null, // Ohne Zuordnung
           };
           List<http.MultipartFile> files = [];
           if (f != null) {

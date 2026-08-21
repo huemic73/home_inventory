@@ -5,9 +5,8 @@ services:
     ports:
       - "8090:8080"
     volumes:
-      - ./pb_data:/pb_data
+      - pb_data_volume:/pb_data
     command:
-      - /usr/local/bin/pocketbase
       - serve
       - --http=0.0.0.0:8080
       - --dir=/pb_data
@@ -23,3 +22,6 @@ services:
     depends_on:
       - pocketbase
     restart: unless-stopped
+
+volumes:
+  pb_data_volume:
