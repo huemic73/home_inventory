@@ -102,8 +102,15 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
 
       final Map<String, List<StorageNode>> grouped = {};
       for (var c in containersToPrint) {
-        final parentName = c.record.get<RecordModel?>('expand.parent')?.getStringValue('name') ?? 'Hauptebene';
-        grouped.putIfAbsent(parentName, () => []).add(c);
+        final parentRecord = c.record.get<RecordModel?>('expand.parent');
+        String pathStr = 'Hauptebene';
+        if (parentRecord != null) {
+          final parentNode = StorageNode.fromRecord(parentRecord);
+          final parentPath = _extractBreadcrumbs(parentNode);
+          final fullParentPath = [...parentPath, parentNode];
+          pathStr = _getPathString(fullParentPath);
+        }
+        grouped.putIfAbsent(pathStr, () => []).add(c);
       }
 
       doc.addPage(
@@ -138,15 +145,13 @@ class _BulkQrPrintScreenState extends State<BulkQrPrintScreen> {
                         mainAxisAlignment: pw.MainAxisAlignment.center,
                         children: [
                           pw.Text(container.name, style: pw.TextStyle(fontSize: 9, font: boldFont), textAlign: pw.TextAlign.center, maxLines: 2),
-                          pw.SizedBox(height: 4),
-                          pw.Text(groupName, style: pw.TextStyle(fontSize: 7, font: font, color: PdfColors.grey700), textAlign: pw.TextAlign.center),
-                          pw.SizedBox(height: 8),
+                          pw.SizedBox(height: 10),
                           pw.BarcodeWidget(
                             barcode: pw.Barcode.qrCode(errorCorrectLevel: pw.BarcodeQRCorrectionLevel.high), 
                             data: qrData, 
                             width: 75, height: 75
                           ),
-                          pw.SizedBox(height: 4),
+                          pw.SizedBox(height: 10),
                           pw.Text('ID: ${container.id.substring(0, 8)}', style: pw.TextStyle(fontSize: 6, font: font, color: PdfColors.grey600)),
                         ],
                       ),
