@@ -27,7 +27,7 @@ class FullScreenImageViewer extends StatelessWidget {
         title: title != null ? Text(title!) : null,
       ),
       body: PhotoView(
-        imageProvider: CachedNetworkImageProvider(imageUrl),
+        imageProvider: kIsWeb ? NetworkImage(imageUrl) : CachedNetworkImageProvider(imageUrl) as ImageProvider,
         minScale: PhotoViewComputedScale.contained,
         maxScale: PhotoViewComputedScale.covered * 2.0,
       ),
@@ -56,24 +56,50 @@ class InventoryNetworkImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget image = CachedNetworkImage(
-      imageUrl: imageUrl,
-      width: width,
-      height: height,
-      fit: fit,
-      placeholder: (context, url) => Container(
+    Widget image;
+
+    if (kIsWeb) {
+      image = Image.network(
+        imageUrl,
         width: width,
         height: height,
-        color: Colors.grey.withAlpha(20),
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      ),
-      errorWidget: (context, url, error) => Container(
+        fit: fit,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: width,
+            height: height,
+            color: Colors.grey.withAlpha(20),
+            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey.withAlpha(20),
+          child: const Icon(Icons.error_outline),
+        ),
+      );
+    } else {
+      image = CachedNetworkImage(
+        imageUrl: imageUrl,
         width: width,
         height: height,
-        color: Colors.grey.withAlpha(20),
-        child: const Icon(Icons.error_outline),
-      ),
-    );
+        fit: fit,
+        placeholder: (context, url) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey.withAlpha(20),
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+        errorWidget: (context, url, error) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey.withAlpha(20),
+          child: const Icon(Icons.error_outline),
+        ),
+      );
+    }
 
     if (borderRadius != null) {
       image = ClipRRect(borderRadius: borderRadius!, child: image);
@@ -645,6 +671,20 @@ class InventoryListTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String formatSubtitle(int itemsCount, int childCount) {
+  final parts = <String>[];
+  if (itemsCount > 0) {
+    parts.add('$itemsCount Gegenstände');
+  }
+  if (childCount > 0) {
+    parts.add('$childCount Unterelemente');
+  }
+  if (parts.isEmpty) {
+    return 'Leer';
+  }
+  return parts.join(' · ');
 }
 
 /// Grid-Element für alles (Items, Container, etc.)

@@ -261,7 +261,10 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
           entity: node,
           pb: widget.pb,
           onRefresh: _refreshData,
-          subtitleOverride: '${_totalItemCounts[node.id] ?? 0} Gegenstände · ${_childNodeCounts[node.id] ?? 0} Unterelemente',
+          subtitleOverride: formatSubtitle(
+            _totalItemCounts[node.id] ?? 0,
+            _childNodeCounts[node.id] ?? 0,
+          ),
           popupMenu: PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, size: 18),
             onSelected: (val) async {
