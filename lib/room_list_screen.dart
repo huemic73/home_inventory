@@ -313,14 +313,20 @@ class _RoomListScreenState extends State<RoomListScreen> {
       children: [
         DrawerHeader(
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black12, width: 1))),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Text('Meine Bereiche', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)), Text('Inventar-Übersicht', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54))]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Text('Heiminventarisierung', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)), Text('Inventar-Übersicht', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54))]),
         ),
         const SizedBox(height: 12),
         NavigationDrawerDestination(icon: Icon(Icons.dashboard_outlined, color: isDark ? Colors.white70 : null), label: Text('Übersicht', style: TextStyle(color: isDark ? Colors.white : null))),
         NavigationDrawerDestination(icon: Icon(Icons.print_outlined, color: isDark ? Colors.white70 : null), label: Text('Etiketten', style: TextStyle(color: isDark ? Colors.white : null))),
         NavigationDrawerDestination(icon: Icon(Icons.person_outline, color: isDark ? Colors.white70 : null), label: Text('Profil & Sicherheit', style: TextStyle(color: isDark ? Colors.white : null))),
         const Divider(indent: 16, endIndent: 16),
-        AboutListTile(icon: Icon(Icons.info_outline, color: isDark ? Colors.white70 : null), applicationName: 'Heiminventarisierung', child: Text('Über die App', style: TextStyle(color: isDark ? Colors.white : null))),
+        AboutListTile(
+          icon: Icon(Icons.info_outline, color: isDark ? Colors.white70 : null),
+          applicationName: 'Heiminventarisierung',
+          applicationVersion: '1.0',
+          applicationLegalese: 'by Michael Hüllbrock',
+          child: Text('Über die App', style: TextStyle(color: isDark ? Colors.white : null)),
+        ),
       ],
       onDestinationSelected: (index) {
         Navigator.pop(context);
