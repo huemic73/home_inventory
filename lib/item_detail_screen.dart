@@ -236,22 +236,25 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: tags.map((tag) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: tag.colorData.withAlpha(20),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: tag.colorData.withAlpha(50)),
-                  ),
-                  child: Text(
-                    tag.name,
-                    style: TextStyle(
-                      color: tag.colorData,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                children: tags.map((tag) {
+                  final adaptiveColor = tag.getAdaptiveColor(context);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: adaptiveColor.withAlpha(20),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: adaptiveColor.withAlpha(50)),
                     ),
-                  ),
-                )).toList(),
+                    child: Text(
+                      tag.name,
+                      style: TextStyle(
+                        color: adaptiveColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ],
           ),

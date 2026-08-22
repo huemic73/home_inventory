@@ -203,12 +203,16 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                       child: Row(
                         children: _availableTags.map((tag) {
                           final isSelected = _selectedTagIds.contains(tag.id);
+                          final adaptiveColor = tag.getAdaptiveColor(context);
+                          final textColor = isSelected
+                              ? (adaptiveColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white)
+                              : null;
                           return Padding(
                             padding: const EdgeInsets.only(right: 8.0),
                             child: FilterChip(
-                              label: Text(tag.name, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : null)),
+                              label: Text(tag.name, style: TextStyle(fontSize: 12, color: textColor)),
                               selected: isSelected,
-                              selectedColor: tag.colorData,
+                              selectedColor: adaptiveColor,
                               onSelected: (val) {
                                   setState(() {
                                     if (val) {
@@ -221,7 +225,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                               },
                               showCheckmark: false,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              side: BorderSide(color: tag.colorData.withAlpha(50)),
+                              side: BorderSide(color: adaptiveColor.withAlpha(50)),
                             ),
                           );
                         }).toList(),

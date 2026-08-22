@@ -264,6 +264,18 @@ class Tag {
       return Colors.grey;
     }
   }
+
+  Color getAdaptiveColor(BuildContext context) {
+    final original = colorData;
+    if (Theme.of(context).brightness == Brightness.dark) {
+      final hsl = HSLColor.fromColor(original);
+      return hsl
+          .withLightness((hsl.lightness + 0.35).clamp(0.65, 0.95))
+          .withSaturation((hsl.saturation * 0.8).clamp(0.4, 0.9))
+          .toColor();
+    }
+    return original;
+  }
 }
 
 // Zentrales Mapping für Icons, gruppiert nach Typ für die UI

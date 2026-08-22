@@ -641,17 +641,22 @@ class InventoryListTile extends StatelessWidget {
                             }
                           }
                         },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: tag.colorData.withAlpha(30),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: tag.colorData.withAlpha(50)),
-                          ),
-                          child: Text(
-                            tag.name,
-                            style: TextStyle(color: tag.colorData, fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
+                        child: Builder(
+                          builder: (context) {
+                            final adaptiveColor = tag.getAdaptiveColor(context);
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: adaptiveColor.withAlpha(30),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: adaptiveColor.withAlpha(50)),
+                              ),
+                              child: Text(
+                                tag.name,
+                                style: TextStyle(color: adaptiveColor, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            );
+                          }
                         ),
                       );
                     },
@@ -1242,12 +1247,16 @@ class _InventoryFormState extends State<InventoryForm> {
                           return tag.name.toLowerCase().contains(_tagFilterController.text.toLowerCase());
                         }).map((tag) {
                           final isSelected = _selectedTagIds.contains(tag.id);
+                          final adaptiveColor = tag.getAdaptiveColor(context);
+                          final textColor = isSelected
+                              ? (adaptiveColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white)
+                              : null;
                           return GestureDetector(
                             onLongPress: () => _confirmDeleteTag(tag),
                             child: FilterChip(
-                              label: Text(tag.name, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : null)),
+                              label: Text(tag.name, style: TextStyle(fontSize: 12, color: textColor)),
                               selected: isSelected,
-                              selectedColor: tag.colorData,
+                              selectedColor: adaptiveColor,
                               onSelected: (val) {
                                 setState(() {
                                   if (val) {

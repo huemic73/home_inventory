@@ -351,17 +351,18 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: _currentNode.tags.map((tag) {
+                          final adaptiveColor = tag.getAdaptiveColor(context);
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: tag.colorData.withAlpha(20),
-                              border: Border.all(color: tag.colorData.withAlpha(50)),
+                              color: adaptiveColor.withAlpha(20),
+                              border: Border.all(color: adaptiveColor.withAlpha(50)),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               tag.name,
                               style: TextStyle(
-                                color: tag.colorData,
+                                color: adaptiveColor,
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
