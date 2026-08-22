@@ -83,7 +83,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         if (!_showContainers) {
           nodeFilters.add('type != "container"');
         } else if (!_showLocations) {
-          nodeFilters.add('type == "container"');
+          nodeFilters.add('type = "container"');
         }
         final nodeFilter = nodeFilters.join(' && ');
 
