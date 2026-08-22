@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'main.dart'; // Import für themeNotifier
 import 'ui_components.dart';
+import 'backup_service.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final PocketBase pb;
@@ -187,6 +188,37 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                   ),
                 ),
+
+                if (user?.getBoolValue('admin') ?? false) ...[
+                  const SizedBox(height: 32),
+                  const Text('Datensicherheit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardTheme.color,
+                      borderRadius: BorderRadius.circular(32),
+                    ),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.cloud_upload_outlined),
+                          title: const Text('Backup erstellen'),
+                          subtitle: const Text('Daten & Bilder als ZIP exportieren und sichern'),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                          onTap: () => AppBackupService.exportBackup(widget.pb, context),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.cloud_download_outlined),
+                          title: const Text('Backup einspielen'),
+                          subtitle: const Text('Daten aus einer ZIP-Backup-Datei wiederherstellen'),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                          onTap: () => AppBackupService.importBackup(widget.pb, context),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 32),
                 const Text('Passwort ändern', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
