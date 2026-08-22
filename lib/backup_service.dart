@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
@@ -7,6 +8,8 @@ import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
+import 'web_download_helper.dart'
+    if (dart.library.html) 'web_download_helper_web.dart';
 
 class AppBackupService {
   static Future<void> exportBackup(PocketBase pb, BuildContext context) async {
@@ -136,20 +139,25 @@ class AppBackupService {
       progressNotifier.value = 'Backup-Datei wird komprimiert...';
       final zipEncoder = ZipEncoder();
       final zipBytes = zipEncoder.encode(archive);
-
-      final tempDir = await getTemporaryDirectory();
       final dateStr = DateTime.now().toIso8601String().split('T')[0];
-      final backupFile = File('${tempDir.path}/heiminventar_backup_$dateStr.zip');
-      await backupFile.writeAsBytes(zipBytes);
 
-      // Dialog schließen
-      if (context.mounted) Navigator.pop(context);
+      if (kIsWeb) {
+        if (context.mounted) Navigator.pop(context);
+        saveFileWeb(zipBytes, 'heiminventar_backup_$dateStr.zip');
+      } else {
+        final tempDir = await getTemporaryDirectory();
+        final backupFile = File('${tempDir.path}/heiminventar_backup_$dateStr.zip');
+        await backupFile.writeAsBytes(zipBytes);
 
-      // 5. Teilen Dialog öffnen
-      await Share.shareXFiles(
-        [XFile(backupFile.path)],
-        subject: 'Heiminventar Backup vom $dateStr',
-      );
+        // Dialog schließen
+        if (context.mounted) Navigator.pop(context);
+
+        // 5. Teilen Dialog öffnen
+        await Share.shareXFiles(
+          [XFile(backupFile.path)],
+          subject: 'Heiminventar Backup vom $dateStr',
+        );
+      }
     } catch (e) {
       if (context.mounted) {
         Navigator.pop(context); // Dialog schließen
@@ -223,8 +231,13 @@ class AppBackupService {
 
     try {
       // 2. ZIP entpacken
-      final file = File(result.files.single.path!);
-      final bytes = await file.readAsBytes();
+      final List<int> bytes;
+      if (kIsWeb) {
+        bytes = result.files.single.bytes!;
+      } else {
+        final file = File(result.files.single.path!);
+        bytes = await file.readAsBytes();
+      }
       final archive = ZipDecoder().decodeBytes(bytes);
 
       // Finde die JSON-Datei
