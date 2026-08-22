@@ -18,10 +18,11 @@ Eine moderne, rekursive Flutter-Anwendung zur Inventarverwaltung für zuhause. O
   - **Label-Recycling:** Weise bereits gedruckten Etiketten erst beim Bekleben neue Container zu.
 - **Optimiertes Verschieben:** Verschiebe Boxen oder Artikel mit einer integrierten Echtzeit-Suche und Zirkelbezug-Schutz.
 - **Profi-Suche:** Suche gleichzeitig nach Namen und mehreren Tags (AND-Verknüpfung).
+- **Rollenbasierte Datensicherheit & Cloud-Backups:** Sichert den kompletten Datenbestand inklusive aller hochgeladenen Fotos als ZIP-Datei. Diese kann plattformübergreifend (Mobil & Web) über das native Teilen-Menü oder als Browser-Download direkt auf Google Drive, OneDrive oder iCloud geladen werden. Der Zugriff auf diese Funktionen ist administrativen Benutzern vorbehalten (gesteuert über ein Flag in der Datenbank).
 - **Einheitliche & cleane App-Menüs:** Schlanke App-Bars und übersichtliche Drei-Punkte-Dropdown-Menüs (mit farbigen Icons) für eine intuitive Bedienung.
 - **Visuelle Erfassung:** Unterstützung für Fotos auf jeder Ebene inklusive großer Header-Bilder und automatischer Kontrastanpassung.
 - **Inventurhilfe:** Generiere strukturierte PDF-Listen aller Container inklusive QR-Codes.
-- **Sicherheit:** Biometrischer Login (Fingerabdruck/FaceID) und persistente Sitzungen.
+- **Sicherheit & Komfort:** Biometrischer Login (Fingerabdruck/FaceID) und persistente Sitzungen.
 
 ## 🛠 Tech-Stack & Architektur
 
@@ -29,7 +30,7 @@ Eine moderne, rekursive Flutter-Anwendung zur Inventarverwaltung für zuhause. O
 - **Backend:** [PocketBase](https://pocketbase.io)
 - **Modell:** Einheitliches `StorageNode`-System für rekursive Verschachtelung.
 - **Logik:** Rekursive Berechnung von Artikelbeständen über alle Unterebenen hinweg.
-- **Component-based Design:** Alle zentralen UI-Elemente sind in `lib/ui_components.dart` zentralisiert.
+- **Component-based Design:** Alle Einstellungsmenüs sind platzsparend in modalen Bottom-Sheets und Popup-Dialogen strukturiert.
 
 ---
 
@@ -39,10 +40,11 @@ Eine moderne, rekursive Flutter-Anwendung zur Inventarverwaltung für zuhause. O
 
 1. Lade PocketBase von [pocketbase.io](https://pocketbase.io) herunter.
 2. Starte den Server: `./pocketbase serve --http="0.0.0.0:8090"`.
-3. Erstelle folgende Collections:
+3. Erstelle folgende Collections (oder füge die Felder hinzu):
 
 | Collection | Wichtige Felder | API Rules (Auth) |
 | :--- | :--- | :--- |
+| `users` | `admin` (Bool) | standard |
 | `nodes` | `name`, `type` (area,room,location,container), `parent` (Rel to nodes), `description`, `tags` (Rel to tags), `icon`, `photo`, `labelId` | `@request.auth.id != ""` |
 | `items` | `name`, `quantity`, `node` (Rel to nodes), `tags` (Rel to tags), `photo` | `@request.auth.id != ""` |
 | `tags` | `name`, `color` (Hex) | `@request.auth.id != ""` |
