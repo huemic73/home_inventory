@@ -108,7 +108,18 @@ class StorageNode implements InventoryEntity {
   IconData get icon => iconData;
 
   @override
-  String get secondaryInfo => type.label;
+  String get secondaryInfo {
+    RecordModel? parentRecord;
+    final parentExpand = record.expand['parent'];
+    if (parentExpand != null && parentExpand.isNotEmpty) {
+      parentRecord = parentExpand.first;
+    }
+    final parentName = parentRecord?.getStringValue('name') ?? '';
+    if (parentName.isNotEmpty) {
+      return '${type.label} · In $parentName';
+    }
+    return type.label;
+  }
 
   @override
   List<Tag> get tags => []; // Nodes haben aktuell keine Tags in der DB
