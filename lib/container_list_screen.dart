@@ -8,6 +8,7 @@ import 'pick_unassigned_items_screen.dart';
 import 'scanner_screen.dart';
 import 'global_search_screen.dart';
 import 'ui_components.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ContainerListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -21,6 +22,7 @@ class ContainerListScreen extends StatefulWidget {
 
 class _ContainerListScreenState extends State<ContainerListScreen> {
   late Future<Map<String, dynamic>> _dataFuture;
+  late StorageNode _currentNode;
   Map<String, int> _childNodeCounts = {};
   Map<String, int> _totalItemCounts = {}; // Summe aller Artikel inkl. Unter-Nodes
   Set<String> _occupiedNodeIds = {};
@@ -30,6 +32,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   @override
   void initState() {
     super.initState();
+    _currentNode = widget.parentNode;
     _refreshData();
   }
 
@@ -39,8 +42,16 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchData() async {
+    // Current node aktualisieren
+    try {
+      final parentRecord = await widget.pb.collection('nodes').getOne(_currentNode.id, expand: 'tags');
+      _currentNode = StorageNode.fromRecord(parentRecord);
+    } catch (e) {
+      debugPrint('Fehler beim Aktualisieren der aktuellen Node: $e');
+    }
+
     // 1. Alle relevanten Daten laden
-    final allNodesRecords = await widget.pb.collection('nodes').getFullList();
+    final allNodesRecords = await widget.pb.collection('nodes').getFullList(expand: 'tags');
     final allItemsRecords = await widget.pb.collection('items').getFullList(expand: 'node.parent.parent.parent.parent.parent,tags');
 
     // Pfad berechnen
@@ -49,7 +60,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
     };
     
     List<StorageNode> currentPath = [];
-    StorageNode? current = allNodesMap[widget.parentNode.id];
+    StorageNode? current = allNodesMap[_currentNode.id];
     while (current != null) {
       currentPath.add(current);
       current = current.parentId != null ? allNodesMap[current.parentId] : null;
@@ -100,12 +111,12 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
 
     // 3. Daten für die aktuelle Node filtern
     final currentNodes = allNodesRecords
-        .where((r) => r.getStringValue('parent') == widget.parentNode.id)
+        .where((r) => r.getStringValue('parent') == _currentNode.id)
         .map((r) => StorageNode.fromRecord(r))
         .toList();
 
     final currentItems = allItemsRecords
-        .where((r) => r.getStringValue('node') == widget.parentNode.id)
+        .where((r) => r.getStringValue('node') == _currentNode.id)
         .map((r) => Item.fromRecord(r))
         .toList();
 
@@ -123,27 +134,63 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       });
     }
     
+    final prefs = await SharedPreferences.getInstance();
+    final orderedIds = prefs.getStringList('sort_order_container_${_currentNode.id}');
+    final sortedNodes = sortNodes(currentNodes, orderedIds);
+
     return {
-      'locations': currentNodes.where((n) => n.type != NodeType.container).toList(),
-      'containers': currentNodes.where((n) => n.type == NodeType.container).toList(),
+      'locations': sortedNodes.where((n) => n.type != NodeType.container).toList(),
+      'containers': sortedNodes.where((n) => n.type == NodeType.container).toList(),
       'items': currentItems,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = widget.parentNode.photo.isNotEmpty
-        ? widget.pb.files.getUrl(widget.parentNode.record, widget.parentNode.photo).toString()
+    final imageUrl = _currentNode.photo.isNotEmpty
+        ? widget.pb.files.getUrl(_currentNode.record, _currentNode.photo).toString()
         : null;
 
     return InventoryPageLayout(
-      title: widget.parentNode.name,
-      subtitle: '${widget.parentNode.type.label} · Inhaltsverzeichnis',
+      title: _currentNode.name,
+      subtitle: '${_currentNode.type.label} · Inhaltsverzeichnis',
       imageUrl: imageUrl,
       breadcrumbs: _path,
       onHomePressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
       actions: [
         IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
+        IconButton(
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: () => _showAddNodeDialog(context, node: _currentNode),
+        ),
+        IconButton(
+          icon: const Icon(Icons.sort),
+          onPressed: () async {
+            final data = await _dataFuture;
+            final List<StorageNode> locations = List<StorageNode>.from(data['locations'] ?? []);
+            final List<StorageNode> containers = List<StorageNode>.from(data['containers'] ?? []);
+            final allSubNodes = [...locations, ...containers];
+            
+            if (!mounted) return;
+            if (allSubNodes.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Keine Elemente zum Sortieren vorhanden.')),
+              );
+              return;
+            }
+
+            final sorted = await showDialog<bool>(
+              context: context,
+              builder: (context) => ReorderNodesDialog(
+                nodes: allSubNodes,
+                sortKey: 'sort_order_container_${_currentNode.id}',
+              ),
+            );
+            if (sorted == true) {
+              _refreshData();
+            }
+          },
+        ),
         IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb)))),
         IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
       ],
@@ -173,7 +220,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
             onTap: () => _showAddItemDialog(context),
           ),
           InventoryAction(
-            label: '${widget.parentNode.type.defaultChildType.label} hinzufügen',
+            label: '${_currentNode.type.defaultChildType.label} hinzufügen',
             icon: Icons.add_box_outlined,
             onTap: () => _showAddNodeDialog(context),
           ),
@@ -183,7 +230,7 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
             onTap: () async {
               final res = await Navigator.push(
                 context, 
-                MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: widget.parentNode))
+                MaterialPageRoute(builder: (context) => PickUnassignedItemsScreen(pb: widget.pb, targetNode: _currentNode))
               );
               if (res == true) _refreshData();
             },
@@ -215,6 +262,43 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_currentNode.description.isNotEmpty) ...[
+                      Text(
+                        _currentNode.description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.primary.withAlpha(200),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_currentNode.tags.isNotEmpty) ...[
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _currentNode.tags.map((tag) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: tag.colorData.withAlpha(20),
+                              border: Border.all(color: tag.colorData.withAlpha(50)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              tag.name,
+                              style: TextStyle(
+                                color: tag.colorData,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 16),
+                    ],
                     if (locations.isNotEmpty) ...[
                       const Text('Unterteilungen (Räume/Orte)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       const SizedBox(height: 16),
@@ -316,8 +400,12 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
         initialName: node?.name,
         initialIcon: node?.iconName,
         initialType: node?.type ?? NodeType.container,
+        initialDescription: node?.description,
+        initialTagIds: node?.tagIds,
         showIcons: true,
         showTypeSelector: true,
+        showDescription: true,
+        showTagSelector: true,
         pb: widget.pb,
         onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts, bool deleteImage) async {
           final Map<String, dynamic> data = {
@@ -325,6 +413,8 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
             'icon': i,
             'parent': widget.parentNode.id,
             'type': t.toString().split('.').last,
+            'description': d,
+            'tags': ts,
           };
           
           if (deleteImage) {

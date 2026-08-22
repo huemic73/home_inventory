@@ -11,6 +11,7 @@ import 'bulk_qr_print_screen.dart';
 import 'user_profile_screen.dart';
 import 'global_search_screen.dart';
 import 'ui_components.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RoomListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -41,7 +42,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
 
   Future<List<StorageNode>> _fetchNodes() async {
     // 1. Alles laden für Berechnungen
-    final allNodesRecords = await widget.pb.collection('nodes').getFullList();
+    final allNodesRecords = await widget.pb.collection('nodes').getFullList(expand: 'tags');
     final allItemsRecords = await widget.pb.collection('items').getFullList();
     
     final Map<String, List<String>> parentToChildren = {};
@@ -84,6 +85,7 @@ class _RoomListScreenState extends State<RoomListScreen> {
     final records = await widget.pb.collection('nodes').getFullList(
       filter: 'parent = ""',
       sort: 'name',
+      expand: 'tags',
     );
     final nodes = records.map((r) => StorageNode.fromRecord(r)).toList();
     
@@ -103,7 +105,11 @@ class _RoomListScreenState extends State<RoomListScreen> {
         _unassignedItemCount = unassignedItems.length;
       });
     }
-    return nodes;
+
+    final prefs = await SharedPreferences.getInstance();
+    final orderedIds = prefs.getStringList('sort_order_rooms');
+    final sortedNodes = sortNodes(nodes, orderedIds);
+    return sortedNodes;
   }
 
   @override
@@ -114,6 +120,23 @@ class _RoomListScreenState extends State<RoomListScreen> {
       drawer: _buildDrawer(context),
       actions: [
         IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
+        IconButton(
+          icon: const Icon(Icons.sort),
+          onPressed: () async {
+            final list = await _nodesFuture;
+            if (!mounted) return;
+            final sorted = await showDialog<bool>(
+              context: context,
+              builder: (context) => ReorderNodesDialog(
+                nodes: list,
+                sortKey: 'sort_order_rooms',
+              ),
+            );
+            if (sorted == true) {
+              _refreshNodes();
+            }
+          },
+        ),
         IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb)))),
         const SizedBox(width: 16),
       ],
@@ -294,8 +317,12 @@ class _RoomListScreenState extends State<RoomListScreen> {
         initialName: node?.name,
         initialIcon: node?.iconName ?? 'area',
         initialType: node?.type ?? NodeType.bereich,
+        initialDescription: node?.description,
+        initialTagIds: node?.tagIds,
         showIcons: true,
         showTypeSelector: true, // Erlaube Wahl zwischen AREA und ROOM
+        showDescription: true,
+        showTagSelector: true,
         pb: widget.pb,
         onSave: (String n, String d, int q, XFile? f, String i, String l, NodeType t, List<String> ts, bool deleteImage) async {
           final Map<String, dynamic> data = {
@@ -303,6 +330,8 @@ class _RoomListScreenState extends State<RoomListScreen> {
             'icon': i, 
             'type': t.toString().split('.').last,
             'parent': null,
+            'description': d,
+            'tags': ts,
           };
           if (node != null) data['type'] = node.type.toString().split('.').last;
           

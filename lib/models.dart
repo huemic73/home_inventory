@@ -58,6 +58,8 @@ class StorageNode implements InventoryEntity {
   final String photo;
   final String labelId;
   final String? parentId;
+  final String description;
+  final List<String> tagIds;
   @override
   final RecordModel record;
 
@@ -69,6 +71,8 @@ class StorageNode implements InventoryEntity {
     required this.photo,
     required this.labelId,
     this.parentId,
+    this.description = '',
+    this.tagIds = const [],
     required this.record,
   });
 
@@ -87,6 +91,8 @@ class StorageNode implements InventoryEntity {
       photo: record.getStringValue('photo'),
       labelId: record.getStringValue('labelId'),
       parentId: record.getStringValue('parent'),
+      description: record.getStringValue('description'),
+      tagIds: record.getListValue<String>('tags'),
       record: record,
     );
   }
@@ -122,7 +128,14 @@ class StorageNode implements InventoryEntity {
   }
 
   @override
-  List<Tag> get tags => []; // Nodes haben aktuell keine Tags in der DB
+  List<Tag> get tags {
+    final expandedTags = record.expand['tags'] ?? [];
+    final list = expandedTags
+        .map((r) => Tag.fromRecord(r))
+        .toList();
+    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
+  }
 
   @override
   VoidCallback getAction(BuildContext context, PocketBase pb, {VoidCallback? onRefresh}) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -865,7 +866,7 @@ class _InventoryFormState extends State<InventoryForm> {
     String selectedColorHex = '3F51B5'; // Default indigo
 
     final List<Map<String, String>> colorOptions = [
-      {'name': 'Indigo', 'hex': '3F51B5'},
+      {'name': 'Blau', 'hex': '1E88E5'},
       {'name': 'Rot', 'hex': 'E53935'},
       {'name': 'Grün', 'hex': '43A047'},
       {'name': 'Orange', 'hex': 'FB8C00'},
@@ -873,6 +874,14 @@ class _InventoryFormState extends State<InventoryForm> {
       {'name': 'Lila', 'hex': '8E24AA'},
       {'name': 'Bernstein', 'hex': 'FFB300'},
       {'name': 'Blaugrau', 'hex': '546E7A'},
+      {'name': 'Pink', 'hex': 'D81B60'},
+      {'name': 'Indigo', 'hex': '3949AB'},
+      {'name': 'Hellgrün', 'hex': '7CB342'},
+      {'name': 'Limette', 'hex': 'C0CA33'},
+      {'name': 'Braun', 'hex': '6D4C41'},
+      {'name': 'Anthrazit', 'hex': '37474F'},
+      {'name': 'Tiefes Türkis', 'hex': '00897B'},
+      {'name': 'Tiefes Orange', 'hex': 'F4511E'},
     ];
 
     await showDialog(
@@ -1333,4 +1342,168 @@ class _InventoryFormState extends State<InventoryForm> {
       )
     );
   }
+}
+
+class ReorderNodesDialog extends StatefulWidget {
+  final List<StorageNode> nodes;
+  final String sortKey;
+
+  const ReorderNodesDialog({
+    super.key,
+    required this.nodes,
+    required this.sortKey,
+  });
+
+  @override
+  State<ReorderNodesDialog> createState() => _ReorderNodesDialogState();
+}
+
+class _ReorderNodesDialogState extends State<ReorderNodesDialog> {
+  late List<StorageNode> _nodes;
+
+  @override
+  void initState() {
+    super.initState();
+    _nodes = List.from(widget.nodes);
+  }
+
+  void _sortAlphabetically(bool ascending) {
+    setState(() {
+      _nodes.sort((a, b) {
+        final comp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        return ascending ? comp : -comp;
+      });
+    });
+  }
+
+  void _sortByDate() {
+    setState(() {
+      _nodes.sort((a, b) {
+        final dateA = a.record.getStringValue('created');
+        final dateB = b.record.getStringValue('created');
+        return dateA.compareTo(dateB);
+      });
+    });
+  }
+
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    final orderedIds = _nodes.map((n) => n.id).toList();
+    await prefs.setStringList(widget.sortKey, orderedIds);
+    if (mounted) {
+      Navigator.pop(context, true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reihenfolge sortieren'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 450,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.sort_by_alpha, size: 16),
+                  label: const Text('A-Z'),
+                  onPressed: () => _sortAlphabetically(true),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.sort_by_alpha, size: 16),
+                  label: const Text('Z-A'),
+                  onPressed: () => _sortAlphabetically(false),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.date_range, size: 16),
+                  label: const Text('Datum'),
+                  onPressed: _sortByDate,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(),
+            Expanded(
+              child: ReorderableListView.builder(
+                buildDefaultDragHandles: false,
+                itemCount: _nodes.length,
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) {
+                      newIndex -= 1;
+                    }
+                    final item = _nodes.removeAt(oldIndex);
+                    _nodes.insert(newIndex, item);
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final node = _nodes[index];
+                  if (kIsWeb) {
+                    return ListTile(
+                      key: ValueKey(node.id),
+                      leading: ReorderableDragStartListener(
+                        index: index,
+                        child: const Icon(Icons.drag_handle),
+                      ),
+                      title: Text(node.name),
+                      trailing: Icon(node.iconData, size: 20),
+                      dense: true,
+                    );
+                  } else {
+                    return ReorderableDelayedDragStartListener(
+                      key: ValueKey(node.id),
+                      index: index,
+                      child: ListTile(
+                        leading: const Icon(Icons.drag_handle),
+                        title: Text(node.name),
+                        trailing: Icon(node.iconData, size: 20),
+                        dense: true,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Abbrechen'),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          child: const Text('Speichern'),
+        ),
+      ],
+    );
+  }
+}
+
+List<StorageNode> sortNodes(List<StorageNode> nodes, List<String>? orderedIds) {
+  if (orderedIds == null || orderedIds.isEmpty) return nodes;
+  final Map<String, int> orderMap = {
+    for (int i = 0; i < orderedIds.length; i++) orderedIds[i]: i
+  };
+  final sortedList = List<StorageNode>.from(nodes);
+  sortedList.sort((a, b) {
+    final indexA = orderMap[a.id];
+    final indexB = orderMap[b.id];
+    if (indexA != null && indexB != null) {
+      return indexA.compareTo(indexB);
+    }
+    if (indexA != null) return -1;
+    if (indexB != null) return 1;
+    final dateA = a.record.getStringValue('created');
+    final dateB = b.record.getStringValue('created');
+    return dateA.compareTo(dateB);
+  });
+  return sortedList;
 }
