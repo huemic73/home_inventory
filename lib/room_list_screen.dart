@@ -120,50 +120,31 @@ class _RoomListScreenState extends State<RoomListScreen> {
       drawer: _buildDrawer(context),
       actions: [
         IconButton(
+          icon: const Icon(Icons.qr_code_scanner),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb))),
+        ),
+        IconButton(
+          icon: const Icon(Icons.sort),
+          onPressed: () async {
+            final list = await _nodesFuture;
+            if (!mounted) return;
+            final sorted = await showDialog<bool>(
+              context: context,
+              builder: (context) => ReorderNodesDialog(
+                nodes: list,
+                sortKey: 'sort_order_rooms',
+              ),
+            );
+            if (sorted == true) {
+              _refreshNodes();
+            }
+          },
+        ),
+        IconButton(
           icon: const Icon(Icons.search),
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb))),
         ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert),
-          onSelected: (val) async {
-            if (val == 'sort') {
-              final list = await _nodesFuture;
-              if (!mounted) return;
-              final sorted = await showDialog<bool>(
-                context: context,
-                builder: (context) => ReorderNodesDialog(
-                  nodes: list,
-                  sortKey: 'sort_order_rooms',
-                ),
-              );
-              if (sorted == true) {
-                _refreshNodes();
-              }
-            } else if (val == 'scan') {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)));
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'sort',
-              child: ListTile(
-                leading: Icon(Icons.sort),
-                title: Text('Sortieren'),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'scan',
-              child: ListTile(
-                leading: Icon(Icons.qr_code_scanner),
-                title: Text('QR-Scanner'),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-              ),
-            ),
-          ],
-        ),
+        const SizedBox(width: 16),
       ],
       filterChips: [
         FilterChip(
@@ -274,10 +255,42 @@ class _RoomListScreenState extends State<RoomListScreen> {
                               }
                             }, 
                             itemBuilder: (context) => [
-                              const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')), 
-                              const PopupMenuItem(value: 'pick', child: Text('Gegenstand einsortieren')), 
-                              const PopupMenuItem(value: 'move', child: Text('Verschieben')),
-                              const PopupMenuItem(value: 'delete', child: Text('Löschen'))
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: ListTile(
+                                  leading: Icon(Icons.edit_outlined),
+                                  title: Text('Bearbeiten'),
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'pick',
+                                child: ListTile(
+                                  leading: Icon(Icons.move_to_inbox_outlined),
+                                  title: Text('Gegenstand einsortieren'),
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'move',
+                                child: ListTile(
+                                  leading: Icon(Icons.drive_file_move_outlined),
+                                  title: Text('Verschieben'),
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: ListTile(
+                                  leading: Icon(Icons.delete_outline, color: Colors.red),
+                                  title: Text('Löschen', style: TextStyle(color: Colors.red)),
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                ),
+                              ),
                             ],
                           ),
                         );
@@ -385,7 +398,27 @@ class _RoomListScreenState extends State<RoomListScreen> {
   }
 
   void _showDeleteConfirmDialog(BuildContext context, StorageNode node) {
-    // ... (bestehender Code)
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Löschen?'),
+        content: const Text('Dies löscht nur diesen Knoten. Unterelemente müssen separat verschoben werden.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await widget.pb.collection('nodes').delete(node.id);
+              if (mounted) { 
+                nav.pop(); 
+                _refreshNodes(); 
+              }
+            },
+            child: const Text('Löschen', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddItemDialog(BuildContext context) {

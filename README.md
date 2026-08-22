@@ -9,13 +9,16 @@ Eine moderne, rekursive Flutter-Anwendung zur Inventarverwaltung für zuhause. O
 ## 🚀 Features (v2.0)
 
 - **Rekursive Hierarchie:** Schluss mit starren Ebenen! Organisiere dein Haus in beliebiger Tiefe: **Bereich** > **Raum** > **Regal** > **Reihe** > **Box** > **Kleine Kiste** > **Artikel**.
-- **Systemweites Tagging:** Markiere Artikel mit frei definierbaren, farbigen Schlagworten (z.B. "Camping", "Werkzeug", "Apple"). Ein Artikel kann beliebig viele Tags haben.
+- **Flexibles Tagging & Beschreibungen:** Markiere sowohl **Gegenstände** als auch **Räume/Container** mit detaillierten Beschreibungen und frei definierbaren, farbigen Schlagworten (Tags).
+- **Manuelle & automatische Sortierung:** Verschiebe Elemente per Drag-and-Drop (optimiert für Touch und Web) oder sortiere sie blitzschnell alphabetisch oder nach Erstellungsdatum. Die Reihenfolge wird permanent gespeichert.
 - **Sticky UX & Dynamische Header:** Suchleisten und Tag-Filter passen ihre Höhe automatisch an und "kleben" beim Scrollen am oberen Rand.
 - **Intelligentes QR-System:** 
   - Scanne Boxen oder Artikel, um sofort Details zu sehen.
+  - **Einzelner QR-Code-Druck:** Drucke direkt aus der App QR-Code-Labels für Kisten, Räume oder Artikel (ideal für Etikettendrucker).
   - **Label-Recycling:** Weise bereits gedruckten Etiketten erst beim Bekleben neue Container zu.
 - **Optimiertes Verschieben:** Verschiebe Boxen oder Artikel mit einer integrierten Echtzeit-Suche und Zirkelbezug-Schutz.
 - **Profi-Suche:** Suche gleichzeitig nach Namen und mehreren Tags (AND-Verknüpfung).
+- **Einheitliche & cleane App-Menüs:** Schlanke App-Bars und übersichtliche Drei-Punkte-Dropdown-Menüs (mit farbigen Icons) für eine intuitive Bedienung.
 - **Visuelle Erfassung:** Unterstützung für Fotos auf jeder Ebene inklusive großer Header-Bilder und automatischer Kontrastanpassung.
 - **Inventurhilfe:** Generiere strukturierte PDF-Listen aller Container inklusive QR-Codes.
 - **Sicherheit:** Biometrischer Login (Fingerabdruck/FaceID) und persistente Sitzungen.

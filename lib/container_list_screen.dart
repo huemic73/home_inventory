@@ -172,6 +172,14 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
           onSelected: (val) async {
             if (val == 'edit') {
               _showAddNodeDialog(context, node: _currentNode);
+            } else if (val == 'move') {
+              final result = await Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => MoveContainerScreen(pb: widget.pb, node: _currentNode))
+              );
+              if (result == true) _refreshData();
+            } else if (val == 'delete') {
+              _showDeleteParentConfirmDialog(context);
             } else if (val == 'sort') {
               final data = await _dataFuture;
               final List<StorageNode> locations = List<StorageNode>.from(data['locations'] ?? []);
@@ -213,6 +221,15 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
               ),
             ),
             const PopupMenuItem(
+              value: 'move',
+              child: ListTile(
+                leading: Icon(Icons.drive_file_move_outlined),
+                title: Text('Verschieben'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ),
+            const PopupMenuItem(
               value: 'sort',
               child: ListTile(
                 leading: Icon(Icons.sort),
@@ -235,6 +252,15 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
               child: ListTile(
                 leading: Icon(Icons.refresh),
                 title: Text('Aktualisieren'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'delete',
+              child: ListTile(
+                leading: Icon(Icons.delete_outline, color: Colors.red),
+                title: Text('Löschen', style: TextStyle(color: Colors.red)),
                 contentPadding: EdgeInsets.zero,
                 dense: true,
               ),
@@ -419,10 +445,42 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-              const PopupMenuItem(value: 'pick', child: Text('Gegenstand einsortieren')),
-              const PopupMenuItem(value: 'move', child: Text('Verschieben')),
-              const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+              const PopupMenuItem(
+                value: 'edit',
+                child: ListTile(
+                  leading: Icon(Icons.edit_outlined),
+                  title: Text('Bearbeiten'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'pick',
+                child: ListTile(
+                  leading: Icon(Icons.move_to_inbox_outlined),
+                  title: Text('Gegenstand einsortieren'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'move',
+                child: ListTile(
+                  leading: Icon(Icons.drive_file_move_outlined),
+                  title: Text('Verschieben'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: ListTile(
+                  leading: Icon(Icons.delete_outline, color: Colors.red),
+                  title: Text('Löschen', style: TextStyle(color: Colors.red)),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
             ],
           ),
         );
@@ -506,6 +564,30 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
               if (mounted) { 
                 nav.pop(); 
                 _refreshData(); 
+              }
+            },
+            child: const Text('Löschen', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteParentConfirmDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Löschen?'),
+        content: const Text('Dies löscht diesen Knoten. Unterelemente müssen separat verschoben werden.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await widget.pb.collection('nodes').delete(_currentNode.id);
+              if (mounted) {
+                nav.pop(); // Dialog schließen
+                Navigator.pop(context, true); // Bildschirm schließen und Parent benachrichtigen
               }
             },
             child: const Text('Löschen', style: TextStyle(color: Colors.red)),
