@@ -119,26 +119,51 @@ class _RoomListScreenState extends State<RoomListScreen> {
       subtitle: 'Übersicht',
       drawer: _buildDrawer(context),
       actions: [
-        IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
         IconButton(
-          icon: const Icon(Icons.sort),
-          onPressed: () async {
-            final list = await _nodesFuture;
-            if (!mounted) return;
-            final sorted = await showDialog<bool>(
-              context: context,
-              builder: (context) => ReorderNodesDialog(
-                nodes: list,
-                sortKey: 'sort_order_rooms',
-              ),
-            );
-            if (sorted == true) {
-              _refreshNodes();
+          icon: const Icon(Icons.search),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb))),
+        ),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          onSelected: (val) async {
+            if (val == 'sort') {
+              final list = await _nodesFuture;
+              if (!mounted) return;
+              final sorted = await showDialog<bool>(
+                context: context,
+                builder: (context) => ReorderNodesDialog(
+                  nodes: list,
+                  sortKey: 'sort_order_rooms',
+                ),
+              );
+              if (sorted == true) {
+                _refreshNodes();
+              }
+            } else if (val == 'scan') {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)));
             }
           },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'sort',
+              child: ListTile(
+                leading: Icon(Icons.sort),
+                title: Text('Sortieren'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'scan',
+              child: ListTile(
+                leading: Icon(Icons.qr_code_scanner),
+                title: Text('QR-Scanner'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ),
+          ],
         ),
-        IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb)))),
-        const SizedBox(width: 16),
       ],
       filterChips: [
         FilterChip(

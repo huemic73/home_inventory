@@ -144,9 +144,33 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-              const PopupMenuItem(value: 'move', child: Text('Verschieben')),
-              const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+              const PopupMenuItem(
+                value: 'edit',
+                child: ListTile(
+                  leading: Icon(Icons.edit_outlined),
+                  title: Text('Bearbeiten'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'move',
+                child: ListTile(
+                  leading: Icon(Icons.drive_file_move_outlined),
+                  title: Text('Verschieben'),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: ListTile(
+                  leading: Icon(Icons.delete_outline, color: Colors.red),
+                  title: Text('Löschen', style: TextStyle(color: Colors.red)),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
             ],
           ),
         ],

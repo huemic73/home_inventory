@@ -9,6 +9,7 @@ import 'scanner_screen.dart';
 import 'global_search_screen.dart';
 import 'ui_components.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'qr_display_screen.dart';
 
 class ContainerListScreen extends StatefulWidget {
   final PocketBase pb;
@@ -158,41 +159,88 @@ class _ContainerListScreenState extends State<ContainerListScreen> {
       breadcrumbs: _path,
       onHomePressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
       actions: [
-        IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)))),
         IconButton(
-          icon: const Icon(Icons.edit_outlined),
-          onPressed: () => _showAddNodeDialog(context, node: _currentNode),
+          icon: const Icon(Icons.search),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb))),
         ),
         IconButton(
-          icon: const Icon(Icons.sort),
-          onPressed: () async {
-            final data = await _dataFuture;
-            final List<StorageNode> locations = List<StorageNode>.from(data['locations'] ?? []);
-            final List<StorageNode> containers = List<StorageNode>.from(data['containers'] ?? []);
-            final allSubNodes = [...locations, ...containers];
-            
-            if (!mounted) return;
-            if (allSubNodes.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Keine Elemente zum Sortieren vorhanden.')),
-              );
-              return;
-            }
+          icon: const Icon(Icons.qr_code_outlined),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => QrDisplayScreen(container: _currentNode))),
+        ),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          onSelected: (val) async {
+            if (val == 'edit') {
+              _showAddNodeDialog(context, node: _currentNode);
+            } else if (val == 'sort') {
+              final data = await _dataFuture;
+              final List<StorageNode> locations = List<StorageNode>.from(data['locations'] ?? []);
+              final List<StorageNode> containers = List<StorageNode>.from(data['containers'] ?? []);
+              final allSubNodes = [...locations, ...containers];
+              
+              if (!mounted) return;
+              if (allSubNodes.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Keine Elemente zum Sortieren vorhanden.')),
+                );
+                return;
+              }
 
-            final sorted = await showDialog<bool>(
-              context: context,
-              builder: (context) => ReorderNodesDialog(
-                nodes: allSubNodes,
-                sortKey: 'sort_order_container_${_currentNode.id}',
-              ),
-            );
-            if (sorted == true) {
+              final sorted = await showDialog<bool>(
+                context: context,
+                builder: (context) => ReorderNodesDialog(
+                  nodes: allSubNodes,
+                  sortKey: 'sort_order_container_${_currentNode.id}',
+                ),
+              );
+              if (sorted == true) {
+                _refreshData();
+              }
+            } else if (val == 'scan') {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => ScannerScreen(pb: widget.pb)));
+            } else if (val == 'refresh') {
               _refreshData();
             }
           },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'edit',
+              child: ListTile(
+                leading: Icon(Icons.edit_outlined),
+                title: Text('Bearbeiten'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'sort',
+              child: ListTile(
+                leading: Icon(Icons.sort),
+                title: Text('Sortieren'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'scan',
+              child: ListTile(
+                leading: Icon(Icons.qr_code_scanner),
+                title: Text('QR-Scanner'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'refresh',
+              child: ListTile(
+                leading: Icon(Icons.refresh),
+                title: Text('Aktualisieren'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ),
+          ],
         ),
-        IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GlobalSearchScreen(pb: widget.pb)))),
-        IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
       ],
       filterChips: [
         FilterChip(
