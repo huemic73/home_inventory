@@ -43,7 +43,7 @@ Eine moderne, rekursive Flutter-Anwendung zur Inventarverwaltung für zuhause. O
 
 | Collection | Wichtige Felder | API Rules (Auth) |
 | :--- | :--- | :--- |
-| `nodes` | `name`, `type` (area,room,location,container), `parent` (Rel to nodes), `icon`, `photo`, `labelId` | `@request.auth.id != ""` |
+| `nodes` | `name`, `type` (area,room,location,container), `parent` (Rel to nodes), `description`, `tags` (Rel to tags), `icon`, `photo`, `labelId` | `@request.auth.id != ""` |
 | `items` | `name`, `quantity`, `node` (Rel to nodes), `tags` (Rel to tags), `photo` | `@request.auth.id != ""` |
 | `tags` | `name`, `color` (Hex) | `@request.auth.id != ""` |
 
