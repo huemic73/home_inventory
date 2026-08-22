@@ -101,10 +101,159 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  void _showThemeBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withAlpha(50),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Erscheinungsbild wählen',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ValueListenableBuilder<ThemeMode>(
+                valueListenable: themeNotifier,
+                builder: (context, currentMode, _) {
+                  return Column(
+                    children: [
+                      _buildThemeOption(Icons.brightness_auto, 'Systemstandard', ThemeMode.system, currentMode),
+                      _buildThemeOption(Icons.light_mode_outlined, 'Hell', ThemeMode.light, currentMode),
+                      _buildThemeOption(Icons.dark_mode_outlined, 'Dunkel', ThemeMode.dark, currentMode),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog() {
+    _oldPasswordController.clear();
+    _newPasswordController.clear();
+    _confirmPasswordController.clear();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Passwort ändern'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildPasswordField(_oldPasswordController, 'Aktuelles Passwort'),
+                const SizedBox(height: 16),
+                _buildPasswordField(_newPasswordController, 'Neues Passwort'),
+                const SizedBox(height: 16),
+                _buildPasswordField(_confirmPasswordController, 'Neues Passwort bestätigen'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      setDialogState(() => _isLoading = true);
+                      await _changePassword();
+                      setDialogState(() => _isLoading = false);
+                      if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                    },
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text('Speichern'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBackupBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withAlpha(50),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Backup & Datensicherheit',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.cloud_upload_outlined),
+                title: const Text('Backup erstellen'),
+                subtitle: const Text('Daten & Bilder als ZIP exportieren und sichern'),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  AppBackupService.exportBackup(widget.pb, context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.cloud_download_outlined),
+                title: const Text('Backup einspielen'),
+                subtitle: const Text('Daten aus einer ZIP-Backup-Datei wiederherstellen'),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  AppBackupService.importBackup(widget.pb, context);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.pb.authStore.record;
     final email = user?.getStringValue('email') ?? 'Benutzer';
+    final isAdmin = user?.getBoolValue('admin') ?? false;
 
     return InventoryPageLayout(
       title: 'Profil & Sicherheit',
@@ -146,7 +295,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
                 
                 const SizedBox(height: 32),
-                const Text('Erscheinungsbild', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Einstellungen', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 
                 Container(
@@ -155,97 +304,49 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     color: Theme.of(context).cardTheme.color,
                     borderRadius: BorderRadius.circular(32),
                   ),
-                  child: ValueListenableBuilder<ThemeMode>(
-                    valueListenable: themeNotifier,
-                    builder: (context, currentMode, _) {
-                      return Column(
-                        children: [
-                          _buildThemeOption(Icons.brightness_auto, 'Systemstandard', ThemeMode.system, currentMode),
-                          _buildThemeOption(Icons.light_mode_outlined, 'Hell', ThemeMode.light, currentMode),
-                          _buildThemeOption(Icons.dark_mode_outlined, 'Dunkel', ThemeMode.dark, currentMode),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-                const Text('Sicherheit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardTheme.color,
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                  child: SwitchListTile(
-                    secondary: const Icon(Icons.fingerprint),
-                    title: const Text('Biometrischer Login'),
-                    subtitle: const Text('App-Start mit Fingerabdruck/FaceID schützen'),
-                    value: _useBiometrics,
-                    onChanged: _toggleBiometrics,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  ),
-                ),
-
-                if (user?.getBoolValue('admin') ?? false) ...[
-                  const SizedBox(height: 32),
-                  const Text('Datensicherheit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(32),
-                    ),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.cloud_upload_outlined),
-                          title: const Text('Backup erstellen'),
-                          subtitle: const Text('Daten & Bilder als ZIP exportieren und sichern'),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                          onTap: () => AppBackupService.exportBackup(widget.pb, context),
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.cloud_download_outlined),
-                          title: const Text('Backup einspielen'),
-                          subtitle: const Text('Daten aus einer ZIP-Backup-Datei wiederherstellen'),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                          onTap: () => AppBackupService.importBackup(widget.pb, context),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 32),
-                const Text('Passwort ändern', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardTheme.color,
-                    borderRadius: BorderRadius.circular(32),
-                  ),
                   child: Column(
                     children: [
-                      _buildPasswordField(_oldPasswordController, 'Aktuelles Passwort'),
-                      const SizedBox(height: 16),
-                      _buildPasswordField(_newPasswordController, 'Neues Passwort'),
-                      const SizedBox(height: 16),
-                      _buildPasswordField(_confirmPasswordController, 'Neues Passwort bestätigen'),
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: _isLoading ? null : _changePassword,
-                          style: FilledButton.styleFrom(padding: const EdgeInsets.all(16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                          child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Passwort aktualisieren'),
-                        ),
+                      ValueListenableBuilder<ThemeMode>(
+                        valueListenable: themeNotifier,
+                        builder: (context, mode, _) {
+                          String themeStr = 'Systemstandard';
+                          if (mode == ThemeMode.light) themeStr = 'Hell';
+                          if (mode == ThemeMode.dark) themeStr = 'Dunkel';
+                          return ListTile(
+                            leading: const Icon(Icons.palette_outlined),
+                            title: const Text('Erscheinungsbild'),
+                            subtitle: Text('Aktuell: $themeStr'),
+                            trailing: const Icon(Icons.chevron_right),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                            onTap: _showThemeBottomSheet,
+                          );
+                        },
                       ),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.fingerprint),
+                        title: const Text('Biometrischer Login'),
+                        subtitle: const Text('App-Start schützen'),
+                        value: _useBiometrics,
+                        onChanged: _toggleBiometrics,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.lock_outline),
+                        title: const Text('Passwort ändern'),
+                        subtitle: const Text('Sicherheitsschlüssel aktualisieren'),
+                        trailing: const Icon(Icons.chevron_right),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        onTap: _showChangePasswordDialog,
+                      ),
+                      if (isAdmin)
+                        ListTile(
+                          leading: const Icon(Icons.cloud_sync_outlined),
+                          title: const Text('Backup & Datensicherheit'),
+                          subtitle: const Text('Daten exportieren oder einspielen'),
+                          trailing: const Icon(Icons.chevron_right),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                          onTap: _showBackupBottomSheet,
+                        ),
                     ],
                   ),
                 ),
@@ -281,7 +382,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       title: Text(label, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : null)),
       trailing: isSelected ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      onTap: () => _updateTheme(mode),
+      onTap: () {
+        Navigator.pop(context);
+        _updateTheme(mode);
+      },
     );
   }
 
